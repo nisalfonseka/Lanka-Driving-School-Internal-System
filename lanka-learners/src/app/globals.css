@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Wired to the next/font variables declared in app/layout.tsx. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --card: oklch(1 0 267.51);
+  --ring: oklch(0.5144 0.1605 267.44);
+  --input: oklch(0.94 0 0);
+  --muted: oklch(0.97 0 0);
+  --accent: oklch(0.9214 0.0248 257.65);
+  --border: oklch(0.92 0 0);
+  --radius: 0.5rem;
+  --chart-1: oklch(0.9214 0.0248 257.65);
+  --chart-2: oklch(0.7597 0.0804 267.01);
+  --chart-3: oklch(0.6083 0.1247 272.72);
+  --chart-4: oklch(0.5144 0.1605 267.44);
+  --chart-5: oklch(0.2571 0.1161 272.24);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.5144 0.1605 267.44);
+  --sidebar: oklch(1 0 267.51);
+  --secondary: oklch(0.94 0 0);
+  --background: oklch(0.9851 0 0);
+  --foreground: oklch(0 0 0);
+  --destructive: oklch(0.58 0.22 27);
+  --shadow-blur: 3px;
+  --shadow-color: oklch(0.2571 0.1161 272.24);
+  --sidebar-ring: oklch(0.5144 0.1605 267.44);
+  --shadow-spread: 0px;
+  --letter-spacing: 0em;
+  --shadow-opacity: 0.15;
+  --sidebar-accent: oklch(0.9214 0.0248 257.65);
+  --sidebar-border: oklch(0.92 0 0);
+  --card-foreground: oklch(0.2103 0 267.51);
+  --shadow-offset-x: 0.25px;
+  --shadow-offset-y: 1px;
+  --sidebar-primary: oklch(0.5144 0.1605 267.44);
+  --muted-foreground: oklch(0.44 0 0);
+  --accent-foreground: oklch(0.2571 0.1161 272.24);
+  --popover-foreground: oklch(0 0 0);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-foreground: oklch(0 0 0);
+  --secondary-foreground: oklch(0.25 0 0);
+  --destructive-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent-foreground: oklch(0.2571 0.1161 272.24);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+}
+
+.dark {
+  --card: oklch(0.2103 0 267.51);
+  --ring: oklch(0.5144 0.1605 267.44);
+  --input: oklch(0.32 0 0);
+  --muted: oklch(0.23 0 0);
+  --accent: oklch(0.32 0 0);
+  --border: oklch(0.26 0 0);
+  --radius: 0.5rem;
+  --chart-1: oklch(0.9214 0.0248 257.65);
+  --chart-2: oklch(0.7597 0.0804 267.01);
+  --chart-3: oklch(0.6083 0.1247 272.72);
+  --chart-4: oklch(0.5144 0.1605 267.44);
+  --chart-5: oklch(0.2571 0.1161 272.24);
+  --popover: oklch(0.2103 0 267.51);
+  --primary: oklch(0.5144 0.1605 267.44);
+  --sidebar: oklch(0.2103 0 267.51);
+  --secondary: oklch(0.25 0 0);
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --shadow-blur: 3px;
+  --shadow-color: oklch(0.2571 0.1161 272.24);
+  --sidebar-ring: oklch(0.5144 0.1605 267.44);
+  --shadow-spread: 0px;
+  --letter-spacing: 0em;
+  --shadow-opacity: 0.15;
+  --sidebar-accent: oklch(0.32 0 0);
+  --sidebar-border: oklch(0.26 0 0);
+  --card-foreground: oklch(0.9461 0 0);
+  --shadow-offset-x: 0.25px;
+  --shadow-offset-y: 1px;
+  --sidebar-primary: oklch(0.5144 0.1605 267.44);
+  --muted-foreground: oklch(0.72 0 0);
+  --accent-foreground: oklch(0.9214 0.0248 257.65);
+  --popover-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-foreground: oklch(1 0 0);
+  --secondary-foreground: oklch(0.94 0 0);
+  --destructive-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent-foreground: oklch(0.9214 0.0248 257.65);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Tabular figures keep money columns aligned in tables. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Printing: only the marked receipt area reaches the paper. */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .print\:hidden,
+  nav,
+  aside,
+  header.app-header {
+    display: none !important;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+}

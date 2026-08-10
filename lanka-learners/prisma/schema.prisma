@@ -1,0 +1,498 @@
+// Lanka Learners — internal driving school management system.
+// PostgreSQL + Prisma 7 (driver adapter: @prisma/adapter-pg).
+// Datasource URL lives in prisma.config.ts / the runtime adapter, never in this file.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ClientStatus {
+  ACTIVE
+  COMPLETED
+  INACTIVE
+}
+
+/// Training background of the learner at registration time.
+enum ScheduleType {
+  BEGINNER
+  TRAINED
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+enum ExamResult {
+  PASS
+  FAIL
+  ABSENT
+  PENDING
+}
+
+enum TrialResult {
+  PASS
+  FAIL
+  ABSENT
+  PENDING
+}
+
+enum PaymentType {
+  ADVANCE
+  INSTALLMENT
+  TRAINING_FEE
+  OTHER
+}
+
+enum ExpenseCategory {
+  OFFICE_ACCESSORIES
+  VEHICLE_REPAIRS
+  FUEL
+  OTHER
+}
+
+enum FuelSubCategory {
+  PETROL
+  DIESEL
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  CREATE_CLIENT
+  UPDATE_CLIENT
+  CREATE_EXAM
+  UPDATE_EXAM
+  CREATE_TRIAL
+  UPDATE_TRIAL
+  CREATE_LECTURE_ATTENDANCE
+  UPDATE_LECTURE_ATTENDANCE
+  CREATE_PRACTICAL_TRAINING
+  UPDATE_PRACTICAL_TRAINING
+  CREATE_PAYMENT
+  UPDATE_PAYMENT
+  CREATE_EXPENSE
+  UPDATE_EXPENSE
+  CREATE_EMPLOYEE
+  UPDATE_EMPLOYEE
+  DEACTIVATE_EMPLOYEE
+  ACTIVATE_EMPLOYEE
+  RESET_EMPLOYEE_PASSWORD
+  CREATE_VEHICLE_CLASS
+  UPDATE_VEHICLE_CLASS
+  UPDATE_SETTINGS
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  fullName     String
+  username     String     @unique
+  email        String?    @unique
+  mobile       String?
+  passwordHash String
+  role         Role       @default(EMPLOYEE)
+  status       UserStatus @default(ACTIVE)
+
+  /// Bumped on password reset / deactivation so already-issued JWTs stop validating.
+  tokenVersion Int       @default(0)
+  lastLoginAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  createdClients Client[] @relation("ClientCreatedBy")
+  updatedClients Client[] @relation("ClientUpdatedBy")
+
+  createdExams WrittenExam[] @relation("ExamCreatedBy")
+  updatedExams WrittenExam[] @relation("ExamUpdatedBy")
+
+  createdTrials TrialExam[] @relation("TrialCreatedBy")
+  updatedTrials TrialExam[] @relation("TrialUpdatedBy")
+
+  createdLectures LectureAttendance[] @relation("LectureCreatedBy")
+  updatedLectures LectureAttendance[] @relation("LectureUpdatedBy")
+
+  createdTrainings PracticalTraining[] @relation("TrainingCreatedBy")
+  updatedTrainings PracticalTraining[] @relation("TrainingUpdatedBy")
+
+  createdPayments ClientPayment[] @relation("PaymentCreatedBy")
+  updatedPayments ClientPayment[] @relation("PaymentUpdatedBy")
+
+  createdExpenses CompanyExpense[] @relation("ExpenseCreatedBy")
+  updatedExpenses CompanyExpense[] @relation("ExpenseUpdatedBy")
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+
+model Client {
+  id String @id @default(cuid())
+
+  /// NIC / national identity number.
+  idNumber        String  @unique
+  admissionNumber String  @unique
+  profilePhoto    String?
+
+  fullName    String
+  /// Age is always derived from this value — never stored.
+  dateOfBirth DateTime
+  address     String
+
+  mobileMain     String
+  mobileBackup   String?
+  mobileWhatsapp String?
+
+  registeredDate DateTime
+  scheduleType   ScheduleType
+  /// Total agreed fee in LKR. Remaining balance is derived from payments.
+  totalAgreedFee Decimal      @db.Decimal(12, 2)
+  status         ClientStatus @default(ACTIVE)
+
+  createdById String?
+  updatedById String?
+  createdBy   User?   @relation("ClientCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?   @relation("ClientUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicleClasses    ClientVehicleClass[]
+  document          ClientDocument?
+  previousLicense   PreviousLicense?
+  writtenExams      WrittenExam[]
+  trials            TrialExam[]
+  lectureAttendance LectureAttendance[]
+  practicalTraining PracticalTraining[]
+  payments          ClientPayment[]
+
+  @@index([registeredDate])
+  @@index([status])
+  @@index([fullName])
+  @@map("clients")
+}
+
+model VehicleClass {
+  id     String       @id @default(cuid())
+  code   String       @unique
+  name   String
+  status RecordStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients          ClientVehicleClass[]
+  previousLicenses PreviousLicenseClass[]
+  trainings        PracticalTrainingClass[]
+
+  @@index([status])
+  @@map("vehicle_classes")
+}
+
+model ClientVehicleClass {
+  id             String @id @default(cuid())
+  clientId       String
+  vehicleClassId String
+
+  createdAt DateTime @default(now())
+
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicleClass VehicleClass @relation(fields: [vehicleClassId], references: [id], onDelete: Restrict)
+
+  @@unique([clientId, vehicleClassId])
+  @@index([vehicleClassId])
+  @@map("client_vehicle_classes")
+}
+
+model ClientDocument {
+  id       String @id @default(cuid())
+  clientId String @unique
+
+  medicalReportNumber     String?
+  medicalIssueDate        DateTime?
+  schoolCertificateNumber String?
+  dmtBarcodeNumber        String?
+  learnerPermitIssueDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("client_documents")
+}
+
+model PreviousLicense {
+  id       String @id @default(cuid())
+  clientId String @unique
+
+  licenseNumber String
+  issueDate     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client         Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicleClasses PreviousLicenseClass[]
+
+  @@map("previous_licenses")
+}
+
+model PreviousLicenseClass {
+  id                String @id @default(cuid())
+  previousLicenseId String
+  vehicleClassId    String
+
+  previousLicense PreviousLicense @relation(fields: [previousLicenseId], references: [id], onDelete: Cascade)
+  vehicleClass    VehicleClass    @relation(fields: [vehicleClassId], references: [id], onDelete: Restrict)
+
+  @@unique([previousLicenseId, vehicleClassId])
+  @@index([vehicleClassId])
+  @@map("previous_license_classes")
+}
+
+// ---------------------------------------------------------------------------
+// Exams and trials — a client may have many attempts of each.
+// ---------------------------------------------------------------------------
+
+model WrittenExam {
+  id       String @id @default(cuid())
+  clientId String
+
+  examDate   DateTime
+  dmtBarcode String?
+  attendance AttendanceStatus @default(PRESENT)
+  result     ExamResult       @default(PENDING)
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("ExamUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([examDate])
+  @@index([result])
+  @@map("written_exams")
+}
+
+model TrialExam {
+  id       String @id @default(cuid())
+  clientId String
+
+  trialDate   DateTime
+  dmtBarcode  String?
+  result      TrialResult @default(PENDING)
+  resultNotes String?
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("TrialCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("TrialUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([trialDate])
+  @@index([result])
+  @@map("trial_exams")
+}
+
+// ---------------------------------------------------------------------------
+// Attendance and training
+// ---------------------------------------------------------------------------
+
+model LectureAttendance {
+  id       String @id @default(cuid())
+  clientId String
+
+  attendanceDate DateTime
+  status         AttendanceStatus @default(PRESENT)
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("LectureCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("LectureUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  /// One attendance record per client per day (dates are stored at UTC midnight).
+  @@unique([clientId, attendanceDate])
+  @@index([clientId])
+  @@index([attendanceDate])
+  @@map("lecture_attendance")
+}
+
+model PracticalTraining {
+  id       String @id @default(cuid())
+  clientId String
+
+  trainingDate DateTime
+  notes        String?
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client         Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy      User?                    @relation("TrainingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy      User?                    @relation("TrainingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  vehicleClasses PracticalTrainingClass[]
+
+  @@index([clientId])
+  @@index([trainingDate])
+  @@map("practical_trainings")
+}
+
+/// One training day can cover several vehicle classes (e.g. B and B AUTO).
+model PracticalTrainingClass {
+  id             String @id @default(cuid())
+  trainingId     String
+  vehicleClassId String
+
+  training     PracticalTraining @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  vehicleClass VehicleClass      @relation(fields: [vehicleClassId], references: [id], onDelete: Restrict)
+
+  @@unique([trainingId, vehicleClassId])
+  @@index([vehicleClassId])
+  @@map("practical_training_classes")
+}
+
+// ---------------------------------------------------------------------------
+// Finance
+// ---------------------------------------------------------------------------
+
+model ClientPayment {
+  id       String @id @default(cuid())
+  clientId String
+
+  paymentDate DateTime
+  billNumber  String      @unique
+  amount      Decimal     @db.Decimal(12, 2)
+  paymentType PaymentType
+  description String?
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  createdBy User?  @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?  @relation("PaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([paymentDate])
+  @@map("client_payments")
+}
+
+model CompanyExpense {
+  id String @id @default(cuid())
+
+  expenseDate DateTime
+  category    ExpenseCategory
+  subCategory FuelSubCategory?
+  amount      Decimal          @db.Decimal(12, 2)
+  description String?
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User? @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("ExpenseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([expenseDate])
+  @@index([category])
+  @@map("company_expenses")
+}
+
+// ---------------------------------------------------------------------------
+// Auditing and settings
+// ---------------------------------------------------------------------------
+
+/// Append-only. Never edited or deleted through the application.
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String?
+
+  action      AuditAction
+  entityType  String
+  entityId    String?
+  description String
+
+  oldData Json?
+  newData Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
