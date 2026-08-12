@@ -22,14 +22,14 @@ import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
 export const metadata: Metadata = { title: "Dashboard" };
 
 const TILE_ACCENTS = [
-  "bg-[#2563eb]/12 text-[#1d4ed8] dark:bg-[#60a5fa]/15 dark:text-[#93c5fd]",
-  "bg-[#7c3aed]/12 text-[#6d28d9] dark:bg-[#a78bfa]/15 dark:text-[#c4b5fd]",
-  "bg-[#059669]/12 text-[#047857] dark:bg-[#34d399]/15 dark:text-[#6ee7b7]",
-  "bg-[#d97706]/12 text-[#b45309] dark:bg-[#fbbf24]/15 dark:text-[#fcd34d]",
-  "bg-[#dc2626]/12 text-[#b91c1c] dark:bg-[#f87171]/15 dark:text-[#fca5a5]",
-  "bg-[#db2777]/12 text-[#be185d] dark:bg-[#f472b6]/15 dark:text-[#f9a8d4]",
-  "bg-[#0891b2]/12 text-[#0e7490] dark:bg-[#22d3ee]/15 dark:text-[#67e8f9]",
-  "bg-[#4f46e5]/12 text-[#4338ca] dark:bg-[#818cf8]/15 dark:text-[#a5b4fc]",
+  "bg-chart-1/10 text-chart-1",
+  "bg-chart-2/10 text-chart-2",
+  "bg-chart-3/10 text-chart-3",
+  "bg-chart-4/10 text-chart-4",
+  "bg-chart-5/10 text-chart-5",
+  "bg-primary/10 text-primary",
+  "bg-destructive/10 text-destructive",
+  "bg-secondary/10 text-foreground",
 ] as const;
 
 function OperationTile({ item, index }: { item: NavItem; index: number }) {

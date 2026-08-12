@@ -18,7 +18,7 @@ export function BackButton() {
       aria-label="Go back"
       title="Go back"
       onClick={() => router.back()}
-      className="text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      className="mb-3 text-muted-foreground hover:bg-muted hover:text-foreground"
     >
       <ArrowLeftIcon className="size-4" />
     </Button>

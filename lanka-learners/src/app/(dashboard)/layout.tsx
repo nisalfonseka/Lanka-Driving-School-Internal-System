@@ -60,7 +60,6 @@ export default async function DashboardLayout({
     <div className="min-h-dvh bg-muted/25">
       <header className="app-header sticky top-0 z-20 border-b-2 border-primary/20 bg-sidebar text-sidebar-foreground shadow-[0_3px_0_var(--accent)] backdrop-blur print:hidden">
         <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-          <BackButton />
           <Link
             href="/dashboard"
             className="flex min-w-0 items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -98,6 +97,7 @@ export default async function DashboardLayout({
       </header>
 
       <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <BackButton />
         {children}
       </main>
     </div>
