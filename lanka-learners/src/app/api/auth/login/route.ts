@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { username, password, rememberMe } = parsed.data;
+  const { username, password, rememberMe = false } = parsed.data;
 
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ip =

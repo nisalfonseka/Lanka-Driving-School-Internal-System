@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
+const LOGIN_IMAGE =
+  "/ChatGPT%20Image%20Aug%2012%2C%202026%2C%2010_01_44%20PM.png";
+
 /**
  * The sign-in screen is the application's front door — there is no public
  * marketing site. Anyone already signed in is sent straight to their dashboard.
@@ -21,36 +24,44 @@ export default async function LoginPage() {
   const settings = await getSettings();
 
   return (
-    <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-muted/45 px-4 py-8 sm:px-6">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-primary/[0.04]" />
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-primary/15" />
-      <div aria-hidden className="pointer-events-none absolute -top-40 -right-28 size-96 rounded-full bg-primary/10 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 size-96 rounded-full bg-chart-2/10 blur-3xl" />
+    <main className="grid min-h-dvh bg-background lg:grid-cols-[minmax(0,1.1fr)_minmax(26rem,0.9fr)]">
+      <section className="relative hidden overflow-hidden lg:block">
+        <Image
+          src={LOGIN_IMAGE}
+          alt="Traffic lights on a Sri Lankan road"
+          fill
+          priority
+          sizes="55vw"
+          className="object-cover object-[43%_center]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10"
+        />
+      </section>
 
-      <section className="relative w-full max-w-[26rem]">
-        <div className="overflow-hidden rounded-2xl border bg-card shadow-xl shadow-foreground/[0.08]">
-          <div className="border-b bg-muted/45 px-6 py-7 sm:px-8">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/logo.png"
-                alt=""
-                width={48}
-                height={48}
-                priority
-                className="size-12 shrink-0 rounded-xl object-contain"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold tracking-tight text-foreground">
-                  {settings.systemName}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {settings.businessName}
-                </p>
-              </div>
-            </div>
+      <section className="flex min-h-dvh flex-col px-6 py-8 sm:px-10 lg:px-14">
+        <header className="mx-auto flex w-full max-w-sm items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt=""
+            width={48}
+            height={48}
+            priority
+            className="size-12 shrink-0 rounded-xl object-contain"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold tracking-tight text-foreground">
+              {settings.systemName}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {settings.businessName}
+            </p>
           </div>
+        </header>
 
-          <div className="px-6 py-7 sm:px-8 sm:py-8">
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10">
+          <div className="rounded-2xl border bg-card p-6 shadow-xl shadow-foreground/[0.07] sm:p-8">
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
               Sign in to your account
             </h1>
@@ -62,13 +73,13 @@ export default async function LoginPage() {
               <LoginForm />
             </div>
           </div>
-        </div>
 
-        <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
-          Authorised staff only. All activity is recorded.
-          <br />
-          Accounts are issued by the system owner.
-        </p>
+          <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
+            Authorised staff only. All activity is recorded.
+            <br />
+            Accounts are issued by the system owner.
+          </p>
+        </div>
       </section>
     </main>
   );

@@ -15,20 +15,17 @@ import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 export function LoginForm() {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: "", password: "", rememberMe: false },
   });
-  const rememberMe = watch("rememberMe");
-
   async function onSubmit(values: LoginInput) {
     setFormError(null);
 
@@ -36,7 +33,7 @@ export function LoginForm() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, rememberMe }),
       });
 
       const data = (await response.json()) as {
@@ -133,9 +130,7 @@ export function LoginForm() {
         <Checkbox
           id="remember-me"
           checked={rememberMe}
-          onCheckedChange={(checked) =>
-            setValue("rememberMe", checked, { shouldDirty: true })
-          }
+          onCheckedChange={setRememberMe}
         />
         <Label
           htmlFor="remember-me"
