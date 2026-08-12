@@ -5,18 +5,6 @@ import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-/**
- * Year / month / day entry as three boxes — matches the stored ISO date shape
- * and makes the expected ordering explicit for staff copying a date off
- * a paper form than a native date picker, while staying unambiguous about ordering.
- *
- * The component owns only the *shape* of the input. Whether the date is a real
- * calendar day, and whether it gives a plausible age, stays with the Zod schema
- * so the client and the server apply exactly the same rules: once all three
- * boxes are filled it emits `YYYY-MM-DD` (even if that day does not exist, e.g.
- * 31/02) and lets validation report the problem.
- */
-
 type Parts = { day: string; month: string; year: string };
 
 function splitIsoDate(value: string | undefined): Parts {
@@ -27,11 +15,33 @@ function splitIsoDate(value: string | undefined): Parts {
 
 function joinParts({ day, month, year }: Parts): string {
   if (!day || !month || !year) return "";
-  return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  return `${year}-${month}-${day}`;
 }
 
-const digitsOnly = (raw: string) => raw.replace(/\D/g, "");
+function daysInMonth(year: string, month: string): number {
+  const monthNumber = Number(month);
+  if (monthNumber < 1 || monthNumber > 12) return 31;
 
+  // Until a full year is entered, February offers 29 days. Changing a year
+  // later automatically removes an invalid 29 February selection.
+  const yearNumber = /^\d{4}$/.test(year) ? Number(year) : 2000;
+  return new Date(Date.UTC(yearNumber, monthNumber, 0)).getUTCDate();
+}
+
+function datePartsWithValidDay(next: Parts): Parts {
+  const maxDay = daysInMonth(next.year, next.month);
+  return Number(next.day) > maxDay ? { ...next, day: "" } : next;
+}
+
+const MONTHS = Array.from({ length: 12 }, (_, index) => {
+  const value = String(index + 1).padStart(2, "0");
+  return { value, label: value };
+});
+
+/**
+ * A constrained year/month/day input. Month and day are selects rather than
+ * free text, so staff cannot enter month 13, day 32, or 31 February.
+ */
 export function DateOfBirthField({
   value,
   onChange,
@@ -48,127 +58,44 @@ export function DateOfBirthField({
   disabled?: boolean;
   idPrefix?: string;
 }) {
-  /*
-    Local state holds the three boxes as text, because a half-typed date (a day
-    with no year yet) cannot be represented in the parent's `YYYY-MM-DD` value.
-
-    Re-syncing is done during render rather than in an effect: when the form
-    resets or loads an existing client, the incoming value wins. An effect would
-    render the stale value first and then immediately re-render.
-  */
   const [parts, setParts] = useState<Parts>(() => splitIsoDate(value));
   const [seenValue, setSeenValue] = useState(value);
+  const monthRef = useRef<HTMLSelectElement>(null);
 
-  // Sync external values during render only when the complete value actually
-  // changes. Partial typing emits an empty form value, so the local boxes are
-  // left alone and the second month digit is never overwritten.
+  // The parent receives an empty string until all three fields are complete.
+  // Keep partial values locally, but accept complete values arriving from a
+  // reset or an existing client record.
   if (value !== seenValue) {
     setSeenValue(value);
     const incoming = splitIsoDate(value);
-    if (joinParts(incoming) !== joinParts(parts)) {
-      setParts(incoming);
-    }
+    if (joinParts(incoming) !== joinParts(parts)) setParts(incoming);
   }
-
-  const yearRef = useRef<HTMLInputElement>(null);
-  const monthRef = useRef<HTMLInputElement>(null);
-  const dayRef = useRef<HTMLInputElement>(null);
 
   function update(next: Parts) {
-    setParts(next);
-    onChange(joinParts(next));
+    const validParts = datePartsWithValidDay(next);
+    setParts(validParts);
+    onChange(joinParts(validParts));
   }
 
-  function handlePart(
-    key: keyof Parts,
-    raw: string,
-    maxLength: number,
-    advanceTo?: React.RefObject<HTMLInputElement | null>
-  ) {
-    const cleaned = digitsOnly(raw).slice(0, maxLength);
-    update({ ...parts, [key]: cleaned });
-
-    // Jump to the next box as soon as this one is full, so a date can be typed
-    // straight through without reaching for Tab.
-    if (cleaned.length === maxLength && advanceTo?.current) {
-      advanceTo.current.focus();
-      advanceTo.current.select();
-    }
+  function handleYear(raw: string) {
+    const year = raw.replace(/\D/g, "").slice(0, 4);
+    update({ ...parts, year });
+    if (year.length === 4) monthRef.current?.focus();
   }
 
-  function handleMonth(raw: string) {
-    const cleaned = digitsOnly(raw).slice(0, 2);
-
-    if (cleaned.length === 0) {
-      update({ ...parts, month: "" });
-      return;
-    }
-
-    // A single 2–9 is unambiguous: store it as 02–09 and continue. A leading
-    // 0 or 1 stays editable so the user can complete 01–09 or 10–12.
-    if (cleaned.length === 1) {
-      const digit = Number(cleaned);
-      if (digit >= 2 && digit <= 9) {
-        update({ ...parts, month: `0${digit}` });
-        dayRef.current?.focus();
-        dayRef.current?.select();
-        return;
-      }
-      update({ ...parts, month: cleaned });
-      return;
-    }
-
-    if (!/^(0[1-9]|1[0-2])$/.test(cleaned)) return;
-
-    update({ ...parts, month: cleaned });
-    if (dayRef.current) {
-      dayRef.current.focus();
-      dayRef.current.select();
-    }
-  }
-
-  /** Backspace in an empty box steps back to the previous one. */
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLInputElement>,
-    key: keyof Parts,
-    previous?: React.RefObject<HTMLInputElement | null>
-  ) {
-    if (event.key === "Backspace" && parts[key] === "" && previous?.current) {
-      event.preventDefault();
-      previous.current.focus();
-      const length = previous.current.value.length;
-      previous.current.setSelectionRange(length, length);
-    }
-  }
-
-  /** Pads 1-digit month/day on blur: "7" becomes "07". */
-  function padOnBlur(key: "day" | "month") {
-    if (key === "month" && parts[key] === "0") {
-      update({ ...parts, month: "" });
-      onBlur?.();
-      return;
-    }
-    if (parts[key].length === 1) {
-      update({ ...parts, [key]: parts[key].padStart(2, "0") });
-    }
-    onBlur?.();
-  }
-
-  const boxClass = "tabular text-center";
+  const controlClass = "h-8 w-full rounded-lg border border-border bg-card px-2 text-center text-sm tabular outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
+  const maxDay = daysInMonth(parts.year, parts.month);
 
   return (
     <div
       className={cn(
-        "grid grid-cols-[1fr_3.25rem_3.25rem] items-center gap-2",
+        "grid grid-cols-[1fr_4rem_4rem] items-center gap-2",
         disabled && "opacity-60"
       )}
-      // One accessible group rather than three unrelated inputs. The invalid
-      // state lives on the inputs themselves — `group` does not support it.
       role="group"
       aria-label="Date of birth"
     >
       <Input
-        ref={yearRef}
         id={`${idPrefix}-year`}
         inputMode="numeric"
         autoComplete="bday-year"
@@ -177,48 +104,53 @@ export function DateOfBirthField({
         disabled={disabled}
         aria-label="Year"
         aria-invalid={invalid || undefined}
-        className={boxClass}
+        className="tabular text-center"
         value={parts.year}
-        onChange={(event) => handlePart("year", event.target.value, 4, monthRef)}
-        onKeyDown={(event) => handleKeyDown(event, "year")}
-        onBlur={() => onBlur?.()}
+        onChange={(event) => handleYear(event.target.value)}
+        onBlur={onBlur}
       />
 
-      <Input
+      <select
         ref={monthRef}
         id={`${idPrefix}-month`}
-        inputMode="numeric"
         autoComplete="bday-month"
-        placeholder="MM"
-        maxLength={2}
-        min={1}
-        max={12}
         disabled={disabled}
         aria-label="Month"
         aria-invalid={invalid || undefined}
-        className={boxClass}
+        className={controlClass}
         value={parts.month}
-        onChange={(event) => handleMonth(event.target.value)}
-        onKeyDown={(event) => handleKeyDown(event, "month", yearRef)}
-        onBlur={() => padOnBlur("month")}
-      />
+        onChange={(event) => update({ ...parts, month: event.target.value })}
+        onBlur={onBlur}
+      >
+        <option value="">MM</option>
+        {MONTHS.map((month) => (
+          <option key={month.value} value={month.value}>
+            {month.label}
+          </option>
+        ))}
+      </select>
 
-      <Input
-        ref={dayRef}
+      <select
         id={`${idPrefix}-day`}
-        inputMode="numeric"
         autoComplete="bday-day"
-        placeholder="DD"
-        maxLength={2}
-        disabled={disabled}
+        disabled={disabled || !parts.month}
         aria-label="Day"
         aria-invalid={invalid || undefined}
-        className={boxClass}
+        className={controlClass}
         value={parts.day}
-        onChange={(event) => handlePart("day", event.target.value, 2)}
-        onKeyDown={(event) => handleKeyDown(event, "day", monthRef)}
-        onBlur={() => padOnBlur("day")}
-      />
+        onChange={(event) => update({ ...parts, day: event.target.value })}
+        onBlur={onBlur}
+      >
+        <option value="">DD</option>
+        {Array.from({ length: maxDay }, (_, index) => {
+          const day = String(index + 1).padStart(2, "0");
+          return (
+            <option key={day} value={day}>
+              {day}
+            </option>
+          );
+        })}
+      </select>
     </div>
   );
 }
