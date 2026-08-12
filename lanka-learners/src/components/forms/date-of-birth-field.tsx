@@ -99,15 +99,29 @@ export function DateOfBirthField({
   function handleMonth(raw: string) {
     const cleaned = digitsOnly(raw).slice(0, 2);
 
-    // Allow a single digit while typing (2 becomes 02 on blur), but never
-    // allow a completed month outside the calendar range 01–12.
-    if (cleaned.length === 2) {
-      const month = Number(cleaned);
-      if (month < 1 || month > 12) return;
+    if (cleaned.length === 0) {
+      update({ ...parts, month: "" });
+      return;
     }
 
+    // A single 2–9 is unambiguous: store it as 02–09 and continue. A leading
+    // 0 or 1 stays editable so the user can complete 01–09 or 10–12.
+    if (cleaned.length === 1) {
+      const digit = Number(cleaned);
+      if (digit >= 2 && digit <= 9) {
+        update({ ...parts, month: `0${digit}` });
+        dayRef.current?.focus();
+        dayRef.current?.select();
+        return;
+      }
+      update({ ...parts, month: cleaned });
+      return;
+    }
+
+    if (!/^(0[1-9]|1[0-2])$/.test(cleaned)) return;
+
     update({ ...parts, month: cleaned });
-    if (cleaned.length === 2 && dayRef.current) {
+    if (dayRef.current) {
       dayRef.current.focus();
       dayRef.current.select();
     }
@@ -177,6 +191,8 @@ export function DateOfBirthField({
         autoComplete="bday-month"
         placeholder="MM"
         maxLength={2}
+        min={1}
+        max={12}
         disabled={disabled}
         aria-label="Month"
         aria-invalid={invalid || undefined}
