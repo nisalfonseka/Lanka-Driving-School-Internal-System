@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format";
 import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -38,7 +39,7 @@ function OperationTile({ item, index }: { item: NavItem; index: number }) {
   return (
     <Link
       href={item.href}
-      className={`group flex w-full max-w-[320px] min-h-40 items-center gap-4 rounded-2xl px-5 py-5 shadow-sm shadow-foreground/10 outline-none transition-[transform,box-shadow,filter] hover:-translate-y-1 hover:shadow-lg hover:brightness-105 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-44 sm:px-6 ${TILE_SURFACES[index % TILE_SURFACES.length]}`}
+      className={`group flex min-h-40 w-full items-center gap-4 rounded-2xl px-5 py-5 shadow-md shadow-foreground/10 outline-none transition-[transform,box-shadow,filter] hover:-translate-y-1 hover:shadow-xl hover:brightness-105 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-44 sm:px-6 xl:min-h-48 ${TILE_SURFACES[index % TILE_SURFACES.length]}`}
     >
       <span
         className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-current ring-1 ring-white/20"
@@ -128,16 +129,24 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      <div className="space-y-8">
+      <div
+        className={cn(
+          "space-y-10",
+          !isOwner && "flex min-h-[calc(100dvh-12rem)] flex-col justify-center"
+        )}
+      >
         {navigationSections.map((section, sectionIndex) => (
-          <section key={section.title ?? `section-${sectionIndex}`}>
+          <section
+            key={section.title ?? `section-${sectionIndex}`}
+            className={cn(!isOwner && "w-full")}
+          >
             {section.ownerOnly ? (
               <div className="mb-4 flex items-center justify-between border-b pb-3">
                 <h2 className="text-lg font-semibold tracking-tight">Management</h2>
                 <SettingsIcon className="size-4 text-muted-foreground" />
               </div>
             ) : null}
-            <div className="mx-auto grid w-full max-w-6xl grid-cols-2 justify-items-center gap-6 lg:grid-cols-4">
+            <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4 xl:gap-7">
               {section.items.map((item, itemIndex) => (
                 <OperationTile
                   key={item.href}

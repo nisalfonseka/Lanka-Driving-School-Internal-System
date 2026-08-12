@@ -1,4 +1,12 @@
-import { PencilIcon, PlusIcon } from "lucide-react";
+import {
+  BanknoteIcon,
+  CarIcon,
+  ClipboardListIcon,
+  PencilIcon,
+  PlusIcon,
+  UserIcon,
+  WalletIcon,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,58 +57,86 @@ export default async function ClientProfilePage({
   const records = await getClientRecords(id);
   // Employees get a read-only list; only owners may correct existing records.
   const canEdit = canEditRecords(user.role);
+  const paymentProgress =
+    finance.agreedFee > 0
+      ? Math.min(100, Math.round((finance.totalPaid / finance.agreedFee) * 100))
+      : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       {/* ------------------------------------------------- Header ------ */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center md:p-6">
-          <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-lg font-medium text-muted-foreground">
-            {client.profilePhoto ? (
-              <Image
-                src={client.profilePhoto}
-                alt=""
-                fill
-                sizes="64px"
-                className="object-cover"
-                unoptimized
-              />
-            ) : (
-              initials(client.fullName)
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-lg font-semibold tracking-tight">
-                {client.fullName}
-              </h1>
-              <StatusBadge value={client.status} />
+      <Card className="relative overflow-hidden border-t-4 border-t-primary bg-card shadow-lg shadow-foreground/[0.07] ring-1 ring-foreground/[0.08]">
+        <CardContent className="p-5 sm:p-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary text-xl font-semibold text-primary-foreground shadow-md shadow-primary/20 ring-4 ring-primary/10">
+              {client.profilePhoto ? (
+                <Image
+                  src={client.profilePhoto}
+                  alt={`${client.fullName} profile photo`}
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                initials(client.fullName)
+              )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              <span className="tabular">{client.admissionNumber}</span>
-              {" · "}
-              <span className="tabular">{client.idNumber}</span>
-            </p>
-          </div>
 
-          {/* Employees see a read-only profile — only owners may correct it. */}
-          {canEdit ? (
-            <Button
-              variant="outline"
-              render={<Link href={`/clients/${client.id}/edit`} />}
-            >
-              <PencilIcon className="size-4" />
-              Edit Client
-            </Button>
-          ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium tracking-[0.16em] text-primary uppercase">
+                Learner record
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+                  {client.fullName}
+                </h1>
+                <StatusBadge value={client.status} />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-muted px-3 py-1.5 tabular text-muted-foreground">
+                  Admission · {client.admissionNumber}
+                </span>
+                <span className="rounded-full bg-muted px-3 py-1.5 tabular text-muted-foreground">
+                  NIC · {client.idNumber}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 divide-x rounded-xl border bg-muted/55 text-center">
+              <div className="px-3 py-3 sm:px-5">
+                <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Age</p>
+                <p className="mt-1 text-lg font-semibold tabular">{calculateAge(client.dateOfBirth) ?? "—"}</p>
+              </div>
+              <div className="px-3 py-3 sm:px-5">
+                <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Classes</p>
+                <p className="mt-1 text-lg font-semibold tabular">{client.vehicleClasses.length}</p>
+              </div>
+              <div className="px-3 py-3 sm:px-5">
+                <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Training</p>
+                <p className="mt-1 text-lg font-semibold tabular">{records.trainingSummary.totalDays}</p>
+              </div>
+            </div>
+
+            {/* Employees see a read-only profile — only owners may correct it. */}
+            {canEdit ? (
+              <Button
+                variant="outline"
+                className="bg-card shadow-sm"
+                render={<Link href={`/clients/${client.id}/edit`} />}
+              >
+                <PencilIcon className="size-4" />
+                Edit client
+              </Button>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
       {/* --------------------------------------------------- Tabs ------ */}
-      <Tabs defaultValue="overview">
-        <div className="overflow-x-auto">
-          <TabsList>
+      <Tabs defaultValue="overview" className="gap-4">
+        <div className="overflow-x-auto border-b">
+          <TabsList variant="line" className="min-w-max gap-1 p-0">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="vehicle-classes">Vehicle Classes</TabsTrigger>
@@ -114,125 +150,141 @@ export default async function ClientProfilePage({
         </div>
 
         {/* ------------------------------------------- Overview ------- */}
-        <TabsContent value="overview" className="mt-4 space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardContent className="space-y-6 p-4 md:p-6">
-                <div>
-                  <h2 className="mb-3 text-sm font-semibold">
-                    Personal Information
-                  </h2>
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="space-y-4">
+              <Card>
+                <CardContent className="p-5 md:p-6">
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <UserIcon className="size-4" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold tracking-tight">Personal details</h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Identity and contact information.</p>
+                    </div>
+                  </div>
                   <DetailList
                     items={[
                       { label: "Full Name", value: client.fullName },
                       { label: "NIC / ID", value: client.idNumber },
-                      {
-                        label: "Date of Birth",
-                        value: formatDate(client.dateOfBirth),
-                      },
-                      {
-                        label: "Age",
-                        value: `${calculateAge(client.dateOfBirth) ?? "—"} years`,
-                      },
+                      { label: "Date of Birth", value: formatDate(client.dateOfBirth) },
+                      { label: "Age", value: `${calculateAge(client.dateOfBirth) ?? "—"} years` },
                       { label: "Address", value: client.address },
                       { label: "Main Mobile", value: client.mobileMain },
-                      {
-                        label: "Backup Mobile",
-                        value: client.mobileBackup ?? "—",
-                      },
-                      {
-                        label: "WhatsApp",
-                        value: client.mobileWhatsapp ?? "—",
-                      },
+                      { label: "Backup Mobile", value: client.mobileBackup ?? "—" },
+                      { label: "WhatsApp", value: client.mobileWhatsapp ?? "—" },
                     ]}
                   />
-                </div>
+                </CardContent>
+              </Card>
 
-                <div>
-                  <h2 className="mb-3 text-sm font-semibold">
-                    Registration Information
-                  </h2>
+              <Card>
+                <CardContent className="p-5 md:p-6">
+                  <div className="mb-5 flex items-start gap-3">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-chart-1/10 text-chart-1">
+                      <ClipboardListIcon className="size-4" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold tracking-tight">Registration</h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Admission and training setup.</p>
+                    </div>
+                  </div>
                   <DetailList
                     items={[
-                      {
-                        label: "Admission Number",
-                        value: client.admissionNumber,
-                      },
-                      {
-                        label: "Registered Date",
-                        value: formatDate(client.registeredDate),
-                      },
-                      {
-                        label: "Training Type",
-                        value: humanise(client.scheduleType),
-                      },
+                      { label: "Admission Number", value: client.admissionNumber },
+                      { label: "Registered Date", value: formatDate(client.registeredDate) },
+                      { label: "Training Type", value: humanise(client.scheduleType) },
                       {
                         label: "Vehicle Classes",
                         value: (
-                          <span className="flex flex-wrap gap-1">
+                          <span className="flex flex-wrap gap-1.5">
                             {client.vehicleClasses.map((link) => (
-                              <Badge key={link.id} variant="outline">
+                              <Badge key={link.id} className="bg-primary/10 text-primary hover:bg-primary/15">
                                 {link.vehicleClass.code}
                               </Badge>
                             ))}
                           </span>
                         ),
                       },
-                      {
-                        label: "Registered By",
-                        value: client.createdBy?.fullName ?? "—",
-                      },
-                      {
-                        label: "Last Updated By",
-                        value: client.updatedBy?.fullName ?? "—",
-                      },
+                      { label: "Registered By", value: client.createdBy?.fullName ?? "—" },
+                      { label: "Last Updated By", value: client.updatedBy?.fullName ?? "—" },
                     ]}
                   />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card className="h-fit">
-              <CardContent className="p-4 md:p-6">
-                <h2 className="mb-3 text-sm font-semibold">Fee Summary</h2>
+            <div className="space-y-4">
+              <Card className="overflow-hidden shadow-sm">
+                <div className="h-1.5 bg-primary" />
+                <CardContent className="p-5 md:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Fee summary</p>
+                      <p className="mt-1 text-2xl font-semibold tabular tracking-tight">{formatCurrency(finance.remaining)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {finance.remaining > 0 ? "remaining balance" : "payment complete"}
+                      </p>
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <WalletIcon className="size-5" />
+                    </div>
+                  </div>
 
-                <dl className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Total Agreed Fee</dt>
-                    <dd className="tabular font-medium">
-                      {formatCurrency(finance.agreedFee)}
-                    </dd>
+                  <div className="mt-5">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Payment progress</span>
+                      <span className="tabular font-medium">{paymentProgress}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${paymentProgress}%` }} />
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Total Paid</dt>
-                    <dd className="tabular font-medium text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(finance.totalPaid)}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 border-t pt-3">
-                    <dt className="font-medium">Remaining Balance</dt>
-                    <dd
-                      className={
-                        finance.remaining > 0
-                          ? "tabular font-semibold text-amber-600 dark:text-amber-400"
-                          : "tabular font-semibold text-emerald-600 dark:text-emerald-400"
-                      }
-                    >
-                      {formatCurrency(finance.remaining)}
-                    </dd>
-                  </div>
-                </dl>
 
-                <Button
-                  size="sm"
-                  className="mt-4 w-full"
-                  render={<Link href={`/payments?clientId=${client.id}`} />}
-                >
-                  <PlusIcon className="size-4" />
-                  Add Payment
-                </Button>
-              </CardContent>
-            </Card>
+                  <dl className="mt-5 space-y-3 border-t pt-4 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Agreed fee</dt>
+                      <dd className="tabular font-medium">{formatCurrency(finance.agreedFee)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Collected</dt>
+                      <dd className="tabular font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(finance.totalPaid)}</dd>
+                    </div>
+                  </dl>
+
+                  <Button size="sm" className="mt-5 w-full" render={<Link href={`/payments?clientId=${client.id}`} />}>
+                    <BanknoteIcon className="size-4" />
+                    Add payment
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-5">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-chart-2/10 text-chart-2">
+                      <CarIcon className="size-4" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold tracking-tight">Assigned classes</h2>
+                      <p className="text-xs text-muted-foreground">Vehicle categories for this learner.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {client.vehicleClasses.length > 0 ? (
+                      client.vehicleClasses.map((link) => (
+                        <Badge key={link.id} className="bg-primary/10 text-primary hover:bg-primary/15">
+                          {link.vehicleClass.code}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No classes assigned.</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 

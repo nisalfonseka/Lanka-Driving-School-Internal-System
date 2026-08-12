@@ -15,9 +15,9 @@ export function DashboardNavButton() {
     <Button
       variant="ghost"
       className={cn(
-        "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        "text-muted-foreground hover:bg-muted hover:text-foreground",
         active &&
-          "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm hover:bg-sidebar-primary/90"
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
       )}
       render={<Link href="/dashboard" aria-current={active ? "page" : undefined} />}
     >
