@@ -55,7 +55,7 @@ export function VehicleClassPicker({
             className={cn(
               "flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 text-sm transition-colors",
               checked
-                ? "border-primary/40 bg-accent"
+                ? "border-primary bg-primary text-primary-foreground"
                 : "hover:bg-muted/60",
               disabled && "cursor-not-allowed opacity-60"
             )}
@@ -70,11 +70,18 @@ export function VehicleClassPicker({
             <span className="min-w-0">
               <Label
                 htmlFor={inputId}
-                className="cursor-pointer font-medium"
+                className="cursor-pointer font-medium text-current"
               >
                 {option.code}
               </Label>
-              <span className="block truncate text-xs text-muted-foreground">
+              <span
+                className={cn(
+                  "block truncate text-xs",
+                  checked
+                    ? "text-primary-foreground/75"
+                    : "text-muted-foreground"
+                )}
+              >
                 {option.name}
               </span>
             </span>

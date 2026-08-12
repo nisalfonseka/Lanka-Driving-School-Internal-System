@@ -22,14 +22,14 @@ import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
 export const metadata: Metadata = { title: "Dashboard" };
 
 const TILE_SURFACES = [
-  "bg-chart-1 text-white",
-  "bg-chart-2 text-foreground",
-  "bg-chart-3 text-white",
-  "bg-chart-4 text-white",
-  "bg-chart-5 text-white",
-  "bg-primary text-primary-foreground",
-  "bg-destructive text-destructive-foreground",
-  "bg-secondary text-secondary-foreground",
+  "bg-[#B2182B] text-white",
+  "bg-[#D1E5F0] text-[#010101]",
+  "bg-[#D6604D] text-white",
+  "bg-[#92C5DE] text-[#010101]",
+  "bg-[#F4A582] text-[#010101]",
+  "bg-[#4393C3] text-white",
+  "bg-[#FDDBC7] text-[#010101]",
+  "bg-[#2166AC] text-white",
 ] as const;
 
 function OperationTile({ item, index }: { item: NavItem; index: number }) {
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
                 <SettingsIcon className="size-4 text-muted-foreground" />
               </div>
             ) : null}
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-5 lg:grid-cols-4">
               {section.items.map((item, itemIndex) => (
                 <OperationTile
                   key={item.href}

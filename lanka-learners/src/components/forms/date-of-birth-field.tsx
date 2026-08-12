@@ -59,6 +59,9 @@ export function DateOfBirthField({
   const [parts, setParts] = useState<Parts>(() => splitIsoDate(value));
   const [seenValue, setSeenValue] = useState(value);
 
+  // Sync external values during render only when the complete value actually
+  // changes. Partial typing emits an empty form value, so the local boxes are
+  // left alone and the second month digit is never overwritten.
   if (value !== seenValue) {
     setSeenValue(value);
     const incoming = splitIsoDate(value);
