@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * Day / month / year entry as three boxes — faster for staff copying a date off
- * a paper form than a native date picker, and unambiguous about ordering.
+ * Year / month / day entry as three boxes — matches the stored ISO date shape
+ * and makes the expected ordering explicit for staff copying a date off
+ * a paper form than a native date picker, while staying unambiguous about ordering.
  *
  * The component owns only the *shape* of the input. Whether the date is a real
  * calendar day, and whether it gives a plausible age, stays with the Zod schema
@@ -66,8 +67,8 @@ export function DateOfBirthField({
     }
   }
 
-  const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
+  const monthRef = useRef<HTMLInputElement>(null);
   const dayRef = useRef<HTMLInputElement>(null);
 
   function update(next: Parts) {
@@ -106,7 +107,7 @@ export function DateOfBirthField({
     }
   }
 
-  /** Pads 1-digit day/month on blur: "7" becomes "07". */
+  /** Pads 1-digit month/day on blur: "7" becomes "07". */
   function padOnBlur(key: "day" | "month") {
     if (parts[key].length === 1) {
       update({ ...parts, [key]: parts[key].padStart(2, "0") });
@@ -119,7 +120,7 @@ export function DateOfBirthField({
   return (
     <div
       className={cn(
-        "grid grid-cols-[3.25rem_3.25rem_1fr] items-center gap-2",
+        "grid grid-cols-[1fr_3.25rem_3.25rem] items-center gap-2",
         disabled && "opacity-60"
       )}
       // One accessible group rather than three unrelated inputs. The invalid
@@ -128,20 +129,20 @@ export function DateOfBirthField({
       aria-label="Date of birth"
     >
       <Input
-        ref={dayRef}
-        id={`${idPrefix}-day`}
+        ref={yearRef}
+        id={`${idPrefix}-year`}
         inputMode="numeric"
-        autoComplete="bday-day"
-        placeholder="DD"
-        maxLength={2}
+        autoComplete="bday-year"
+        placeholder="YYYY"
+        maxLength={4}
         disabled={disabled}
-        aria-label="Day"
+        aria-label="Year"
         aria-invalid={invalid || undefined}
         className={boxClass}
-        value={parts.day}
-        onChange={(event) => handlePart("day", event.target.value, 2, monthRef)}
-        onKeyDown={(event) => handleKeyDown(event, "day")}
-        onBlur={() => padOnBlur("day")}
+        value={parts.year}
+        onChange={(event) => handlePart("year", event.target.value, 4, monthRef)}
+        onKeyDown={(event) => handleKeyDown(event, "year")}
+        onBlur={() => onBlur?.()}
       />
 
       <Input
@@ -157,27 +158,27 @@ export function DateOfBirthField({
         className={boxClass}
         value={parts.month}
         onChange={(event) =>
-          handlePart("month", event.target.value, 2, yearRef)
+          handlePart("month", event.target.value, 2, dayRef)
         }
-        onKeyDown={(event) => handleKeyDown(event, "month", dayRef)}
+        onKeyDown={(event) => handleKeyDown(event, "month", yearRef)}
         onBlur={() => padOnBlur("month")}
       />
 
       <Input
-        ref={yearRef}
-        id={`${idPrefix}-year`}
+        ref={dayRef}
+        id={`${idPrefix}-day`}
         inputMode="numeric"
-        autoComplete="bday-year"
-        placeholder="YYYY"
-        maxLength={4}
+        autoComplete="bday-day"
+        placeholder="DD"
+        maxLength={2}
         disabled={disabled}
-        aria-label="Year"
+        aria-label="Day"
         aria-invalid={invalid || undefined}
         className={boxClass}
-        value={parts.year}
-        onChange={(event) => handlePart("year", event.target.value, 4)}
-        onKeyDown={(event) => handleKeyDown(event, "year", monthRef)}
-        onBlur={() => onBlur?.()}
+        value={parts.day}
+        onChange={(event) => handlePart("day", event.target.value, 2)}
+        onKeyDown={(event) => handleKeyDown(event, "day", monthRef)}
+        onBlur={() => padOnBlur("day")}
       />
     </div>
   );

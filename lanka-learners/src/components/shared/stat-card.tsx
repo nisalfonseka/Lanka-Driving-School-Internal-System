@@ -17,10 +17,10 @@ export function StatCard({
   tone?: "default" | "positive" | "negative" | "warning";
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-start justify-between gap-3 p-4">
+    <Card className="min-h-32 bg-card shadow-sm shadow-foreground/[0.03] ring-1 ring-foreground/[0.07]">
+      <CardContent className="flex flex-1 items-start justify-between gap-4 p-5">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {label}
           </p>
           <p
@@ -34,13 +34,22 @@ export function StatCard({
             {value}
           </p>
           {hint ? (
-            <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p>
           ) : null}
         </div>
 
         {Icon ? (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <Icon className="size-4" />
+          <div
+            className={cn(
+              "flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary",
+              tone === "positive" &&
+                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+              tone === "negative" && "bg-destructive/10 text-destructive",
+              tone === "warning" &&
+                "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            )}
+          >
+            <Icon className="size-5" />
           </div>
         ) : null}
       </CardContent>

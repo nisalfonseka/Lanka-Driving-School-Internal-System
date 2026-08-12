@@ -8,7 +8,7 @@ import { put } from "@vercel/blob";
  * as a fallback, so the app stays stateless and Vercel-compatible.
  */
 
-const MAX_BYTES = 3 * 1024 * 1024; // 3 MB
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -28,7 +28,7 @@ function safeFileName(original: string): string {
 
 export function validateImage(file: File): string | null {
   if (file.size === 0) return "The selected file is empty.";
-  if (file.size > MAX_BYTES) return "Image must be 3 MB or smaller.";
+  if (file.size > MAX_BYTES) return "Image must be 5 MB or smaller.";
   if (!ALLOWED_TYPES.has(file.type)) {
     return "Image must be a JPEG, PNG or WebP file.";
   }

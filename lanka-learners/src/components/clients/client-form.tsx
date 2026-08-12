@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { calculateAge } from "@/lib/format";
@@ -43,6 +44,13 @@ const STATUS_OPTIONS = [
   { value: "COMPLETED", label: "Completed" },
   { value: "INACTIVE", label: "Inactive" },
 ];
+
+const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
+const PROFILE_PHOTO_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 export function ClientForm({
   vehicleClasses,
@@ -108,6 +116,18 @@ export function ClientForm({
   async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_PROFILE_PHOTO_BYTES) {
+      toast.error("Image must be 5 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    if (!PROFILE_PHOTO_TYPES.has(file.type)) {
+      toast.error("Image must be a JPEG, PNG or WebP file.");
+      event.target.value = "";
+      return;
+    }
 
     setUploading(true);
     try {
@@ -179,8 +199,19 @@ export function ClientForm({
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex flex-col items-center gap-2">
-                <div className="relative flex size-24 items-center justify-center overflow-hidden rounded-lg border bg-muted">
-                  {profilePhoto ? (
+                <div
+                  className="relative flex size-24 items-center justify-center overflow-hidden rounded-lg border bg-muted"
+                  aria-busy={uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <Skeleton className="absolute inset-0 rounded-none" />
+                      <div className="relative z-10 flex flex-col items-center gap-1 text-primary">
+                        <LoaderIcon className="size-5 animate-spin" />
+                        <span className="text-[10px] font-medium">Uploading</span>
+                      </div>
+                    </>
+                  ) : profilePhoto ? (
                     <Image
                       src={profilePhoto}
                       alt="Profile photo"
@@ -193,6 +224,13 @@ export function ClientForm({
                     <UserIcon className="size-8 text-muted-foreground" />
                   )}
                 </div>
+
+                <p
+                  className="h-4 text-center text-[11px] text-muted-foreground"
+                  aria-live="polite"
+                >
+                  {uploading ? "Uploading photo…" : "JPEG, PNG or WebP · max 5 MB"}
+                </p>
 
                 <div className="flex items-center gap-1">
                   <Button
@@ -207,7 +245,7 @@ export function ClientForm({
                     ) : (
                       <UploadIcon className="size-3" />
                     )}
-                    {uploading ? "Uploading" : "Photo"}
+                    {uploading ? "Uploading…" : "Photo"}
                   </Button>
 
                   {profilePhoto ? (
@@ -266,10 +304,10 @@ export function ClientForm({
                 <div className="grid grid-cols-[1fr_4.5rem] gap-2">
                   <Field
                     label="Date of Birth"
-                    htmlFor="dob-day"
+                    htmlFor="dob-year"
                     required
                     error={errors.dateOfBirth?.message}
-                    hint="Day, month, year"
+                    hint="Year, month, day"
                   >
                     <Controller
                       control={control}

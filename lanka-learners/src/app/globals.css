@@ -155,6 +155,35 @@
   }
 }
 
+/* A calm left-to-right loading sheen communicates progress without the visual
+   noise of a fast pulse. It is shared by every Skeleton in the application. */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.shimmer {
+  background-image: linear-gradient(
+    100deg,
+    color-mix(in oklch, var(--muted), var(--foreground) 2%) 8%,
+    color-mix(in oklch, var(--muted), var(--foreground) 8%) 18%,
+    color-mix(in oklch, var(--muted), var(--foreground) 2%) 33%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background-image: none;
+  }
+}
+
 /* Printing: only the marked receipt area reaches the paper. */
 @media print {
   body {

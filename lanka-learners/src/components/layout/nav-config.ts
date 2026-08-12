@@ -20,6 +20,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  description: string;
   /** When set, only this role sees the link. */
   ownerOnly?: boolean;
 };
@@ -31,20 +32,62 @@ export type NavSection = {
 };
 
 const OPERATIONS: NavSection = {
+  title: "Operations",
   items: [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon },
-    { label: "Register New Client", href: "/clients/new", icon: UserPlusIcon },
-    { label: "Client Area", href: "/clients", icon: UsersIcon },
-    { label: "Exam", href: "/exams", icon: ClipboardListIcon },
-    { label: "Trial", href: "/trials", icon: CarIcon },
-    { label: "Lectures", href: "/lectures", icon: BookOpenIcon },
+    {
+      label: "Dashboard",
+      href: "/dashboard",
+      icon: LayoutDashboardIcon,
+      description: "Return to your workspace overview.",
+    },
+    {
+      label: "Register New Client",
+      href: "/clients/new",
+      icon: UserPlusIcon,
+      description: "Create a learner profile and start their registration.",
+    },
+    {
+      label: "Client Area",
+      href: "/clients",
+      icon: UsersIcon,
+      description: "Find learners, documents, fees and progress records.",
+    },
+    {
+      label: "Written Exams",
+      href: "/exams",
+      icon: ClipboardListIcon,
+      description: "Schedule written exams and record learner results.",
+    },
+    {
+      label: "Trial Exams",
+      href: "/trials",
+      icon: CarIcon,
+      description: "Manage trial dates, attempts and final outcomes.",
+    },
+    {
+      label: "Lectures",
+      href: "/lectures",
+      icon: BookOpenIcon,
+      description: "Plan theory sessions and track attendance.",
+    },
     {
       label: "Practical Training",
       href: "/practical-training",
       icon: CarIcon,
+      description: "Record driving lessons, vehicles and instructors.",
     },
-    { label: "Payments", href: "/payments", icon: BanknoteIcon },
-    { label: "Expenses", href: "/expenses", icon: ReceiptIcon },
+    {
+      label: "Payments",
+      href: "/payments",
+      icon: BanknoteIcon,
+      description: "Collect learner payments and review receipts.",
+    },
+    {
+      label: "Expenses",
+      href: "/expenses",
+      icon: ReceiptIcon,
+      description: "Record and review day-to-day business expenses.",
+    },
   ],
 };
 
@@ -52,10 +95,30 @@ const MANAGEMENT: NavSection = {
   title: "Management",
   ownerOnly: true,
   items: [
-    { label: "Analytics", href: "/analytics", icon: ChartColumnIcon },
-    { label: "Employee Details", href: "/employees", icon: UsersRoundIcon },
-    { label: "Activity Logs", href: "/activity-logs", icon: FileClockIcon },
-    { label: "System Settings", href: "/settings", icon: SettingsIcon },
+    {
+      label: "Analytics",
+      href: "/analytics",
+      icon: ChartColumnIcon,
+      description: "Explore performance, revenue and learner trends.",
+    },
+    {
+      label: "Employees",
+      href: "/employees",
+      icon: UsersRoundIcon,
+      description: "Manage staff accounts, roles and access.",
+    },
+    {
+      label: "Activity Logs",
+      href: "/activity-logs",
+      icon: FileClockIcon,
+      description: "Review important actions recorded across the system.",
+    },
+    {
+      label: "System Settings",
+      href: "/settings",
+      icon: SettingsIcon,
+      description: "Update school details, classes and system preferences.",
+    },
   ],
 };
 
