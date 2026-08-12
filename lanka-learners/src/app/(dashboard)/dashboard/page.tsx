@@ -22,10 +22,14 @@ import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
 export const metadata: Metadata = { title: "Dashboard" };
 
 const TILE_ACCENTS = [
-  "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  "bg-[#2563eb]/12 text-[#1d4ed8] dark:bg-[#60a5fa]/15 dark:text-[#93c5fd]",
+  "bg-[#7c3aed]/12 text-[#6d28d9] dark:bg-[#a78bfa]/15 dark:text-[#c4b5fd]",
+  "bg-[#059669]/12 text-[#047857] dark:bg-[#34d399]/15 dark:text-[#6ee7b7]",
+  "bg-[#d97706]/12 text-[#b45309] dark:bg-[#fbbf24]/15 dark:text-[#fcd34d]",
+  "bg-[#dc2626]/12 text-[#b91c1c] dark:bg-[#f87171]/15 dark:text-[#fca5a5]",
+  "bg-[#db2777]/12 text-[#be185d] dark:bg-[#f472b6]/15 dark:text-[#f9a8d4]",
+  "bg-[#0891b2]/12 text-[#0e7490] dark:bg-[#22d3ee]/15 dark:text-[#67e8f9]",
+  "bg-[#4f46e5]/12 text-[#4338ca] dark:bg-[#818cf8]/15 dark:text-[#a5b4fc]",
 ] as const;
 
 function OperationTile({ item, index }: { item: NavItem; index: number }) {
@@ -34,10 +38,10 @@ function OperationTile({ item, index }: { item: NavItem; index: number }) {
   return (
     <Link
       href={item.href}
-      className="group flex min-h-32 items-center gap-4 rounded-xl bg-card px-5 py-4 shadow-sm shadow-foreground/[0.03] ring-1 ring-foreground/[0.07] outline-none transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/25 focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="group flex min-h-24 items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-sm shadow-foreground/[0.03] ring-1 ring-foreground/[0.07] outline-none transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/25 focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <span
-        className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${TILE_ACCENTS[index % TILE_ACCENTS.length]}`}
+        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${TILE_ACCENTS[index % TILE_ACCENTS.length]}`}
       >
         <Icon className="size-5" />
       </span>
@@ -67,14 +71,11 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       {isOwner ? (
-        <div className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 pb-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
               Owner console
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Operations
-            </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">{todayLabel}</span>
@@ -130,15 +131,13 @@ export default async function DashboardPage() {
       <div className="space-y-8">
         {navigationSections.map((section, sectionIndex) => (
           <section key={section.title ?? `section-${sectionIndex}`}>
-            <div className="mb-4 flex items-center justify-between border-b pb-3">
-              <h2 className="text-lg font-semibold tracking-tight">
-                {section.title ?? "Operations"}
-              </h2>
-              {section.ownerOnly ? (
+            {section.ownerOnly ? (
+              <div className="mb-4 flex items-center justify-between border-b pb-3">
+                <h2 className="text-lg font-semibold tracking-tight">Management</h2>
                 <SettingsIcon className="size-4 text-muted-foreground" />
-              ) : null}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              </div>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {section.items.map((item, itemIndex) => (
                 <OperationTile
                   key={item.href}

@@ -26,7 +26,13 @@ export function TodaySummaryDialog({ stats }: { stats: DashboardStats }) {
   return (
     <Dialog>
       <DialogTrigger
-        render={<Button variant="outline" size="sm" />}
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-sidebar-foreground/30 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          />
+        }
       >
         <CalendarPlusIcon className="size-4" />
         Today&apos;s summary

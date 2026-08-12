@@ -27,7 +27,7 @@ export function SriLankaClock() {
   return (
     <time
       dateTime={now?.toISOString()}
-      className="hidden whitespace-nowrap text-xs tabular text-muted-foreground md:block"
+      className="hidden whitespace-nowrap text-xs tabular text-sidebar-foreground/70 md:block"
       title="Sri Lanka Standard Time"
     >
       {now ? FORMATTER.format(now) : "Sri Lanka time"}

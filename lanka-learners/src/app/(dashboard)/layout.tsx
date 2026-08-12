@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LayoutGridIcon } from "lucide-react";
 
+import { BackButton } from "@/components/layout/back-button";
+import { DashboardNavButton } from "@/components/layout/dashboard-nav-button";
 import { SriLankaClock } from "@/components/layout/sri-lanka-clock";
 import { TodaySummaryDialog } from "@/components/layout/today-summary-dialog";
 import { UserMenu } from "@/components/layout/user-menu";
-import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
 import { getDashboardStats } from "@/lib/queries/dashboard";
@@ -58,8 +58,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-dvh bg-muted/25">
-      <header className="app-header sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85 print:hidden">
+      <header className="app-header sticky top-0 z-20 border-b-2 border-primary/20 bg-sidebar text-sidebar-foreground shadow-[0_3px_0_var(--accent)] backdrop-blur print:hidden">
         <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+          <BackButton />
           <Link
             href="/dashboard"
             className="flex min-w-0 items-center gap-2.5 rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -76,7 +77,7 @@ export default async function DashboardLayout({
               <span className="block truncate text-sm font-semibold tracking-tight">
                 {settings.systemName}
               </span>
-              <span className="hidden truncate text-[11px] text-muted-foreground sm:block">
+              <span className="hidden truncate text-[11px] text-sidebar-foreground/70 sm:block">
                 Staff workspace
               </span>
             </span>
@@ -85,14 +86,7 @@ export default async function DashboardLayout({
           <div className="ml-auto flex items-center gap-2">
             <SriLankaClock />
             <TodaySummaryDialog stats={stats} />
-            <Button
-              variant="ghost"
-              className="text-muted-foreground"
-              render={<Link href="/dashboard" aria-label="Open dashboard" />}
-            >
-              <LayoutGridIcon className="size-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
+            <DashboardNavButton />
             <UserMenu
               fullName={user.fullName}
               username={user.username}

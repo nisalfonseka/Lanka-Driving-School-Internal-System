@@ -1,5 +1,8 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
+
 import {
   startOfMonth,
   startOfNextMonth,
@@ -31,112 +34,128 @@ export type OwnerDashboardStats = DashboardStats & {
   trialsDecided: number;
 };
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const monthStart = startOfMonth();
-  const monthEnd = startOfNextMonth();
-  const todayStart = startOfToday();
-  const tomorrowStart = startOfTomorrow();
+const getDashboardStatsCached = unstable_cache(
+  async (): Promise<DashboardStats> => {
+    const monthStart = startOfMonth();
+    const monthEnd = startOfNextMonth();
+    const todayStart = startOfToday();
+    const tomorrowStart = startOfTomorrow();
 
-  const [
-    totalClients,
-    activeClients,
-    newClientsThisMonth,
-    paymentsThisMonth,
-    expensesThisMonth,
-    agreedFees,
-    paidTotal,
-    todayNewClients,
-    todayPayments,
-    todayExpenses,
-  ] = await Promise.all([
-    prisma.client.count(),
-    prisma.client.count({ where: { status: "ACTIVE" } }),
-    prisma.client.count({
-      where: { registeredDate: { gte: monthStart, lt: monthEnd } },
-    }),
-    prisma.clientPayment.aggregate({
-      _sum: { amount: true },
-      where: { paymentDate: { gte: monthStart, lt: monthEnd } },
-    }),
-    prisma.companyExpense.aggregate({
-      _sum: { amount: true },
-      where: { expenseDate: { gte: monthStart, lt: monthEnd } },
-    }),
-    // Cancelled learners are excluded from what the school still expects to collect.
-    prisma.client.aggregate({
-      _sum: { totalAgreedFee: true },
-      where: { status: { not: "INACTIVE" } },
-    }),
-    prisma.clientPayment.aggregate({
-      _sum: { amount: true },
-      where: { client: { status: { not: "INACTIVE" } } },
-    }),
-    prisma.client.count({
-      where: { registeredDate: { gte: todayStart, lt: tomorrowStart } },
-    }),
-    prisma.clientPayment.aggregate({
-      _sum: { amount: true },
-      where: { paymentDate: { gte: todayStart, lt: tomorrowStart } },
-    }),
-    prisma.companyExpense.aggregate({
-      _sum: { amount: true },
-      where: { expenseDate: { gte: todayStart, lt: tomorrowStart } },
-    }),
-  ]);
+    const [
+      totalClients,
+      activeClients,
+      newClientsThisMonth,
+      paymentsThisMonth,
+      expensesThisMonth,
+      agreedFees,
+      paidTotal,
+      todayNewClients,
+      todayPayments,
+      todayExpenses,
+    ] = await Promise.all([
+      prisma.client.count(),
+      prisma.client.count({ where: { status: "ACTIVE" } }),
+      prisma.client.count({
+        where: { registeredDate: { gte: monthStart, lt: monthEnd } },
+      }),
+      prisma.clientPayment.aggregate({
+        _sum: { amount: true },
+        where: { paymentDate: { gte: monthStart, lt: monthEnd } },
+      }),
+      prisma.companyExpense.aggregate({
+        _sum: { amount: true },
+        where: { expenseDate: { gte: monthStart, lt: monthEnd } },
+      }),
+      // Cancelled learners are excluded from what the school still expects to collect.
+      prisma.client.aggregate({
+        _sum: { totalAgreedFee: true },
+        where: { status: { not: "INACTIVE" } },
+      }),
+      prisma.clientPayment.aggregate({
+        _sum: { amount: true },
+        where: { client: { status: { not: "INACTIVE" } } },
+      }),
+      prisma.client.count({
+        where: { registeredDate: { gte: todayStart, lt: tomorrowStart } },
+      }),
+      prisma.clientPayment.aggregate({
+        _sum: { amount: true },
+        where: { paymentDate: { gte: todayStart, lt: tomorrowStart } },
+      }),
+      prisma.companyExpense.aggregate({
+        _sum: { amount: true },
+        where: { expenseDate: { gte: todayStart, lt: tomorrowStart } },
+      }),
+    ]);
 
-  const outstanding =
-    toNumber(agreedFees._sum.totalAgreedFee) - toNumber(paidTotal._sum.amount);
+    const outstanding =
+      toNumber(agreedFees._sum.totalAgreedFee) - toNumber(paidTotal._sum.amount);
 
-  return {
-    totalClients,
-    activeClients,
-    newClientsThisMonth,
-    paymentsThisMonth: toNumber(paymentsThisMonth._sum.amount),
-    expensesThisMonth: toNumber(expensesThisMonth._sum.amount),
-    outstandingPayments: Math.max(0, outstanding),
-    todayNewClients,
-    todayPayments: toNumber(todayPayments._sum.amount),
-    todayExpenses: toNumber(todayExpenses._sum.amount),
-  };
-}
+    return {
+      totalClients,
+      activeClients,
+      newClientsThisMonth,
+      paymentsThisMonth: toNumber(paymentsThisMonth._sum.amount),
+      expensesThisMonth: toNumber(expensesThisMonth._sum.amount),
+      outstandingPayments: Math.max(0, outstanding),
+      todayNewClients,
+      todayPayments: toNumber(todayPayments._sum.amount),
+      todayExpenses: toNumber(todayExpenses._sum.amount),
+    };
+  },
+  ["lanka-learners-dashboard-stats"],
+  { revalidate: 15 }
+);
 
-export async function getOwnerDashboardStats(): Promise<OwnerDashboardStats> {
-  const base = await getDashboardStats();
+export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
+  return getDashboardStatsCached();
+});
 
-  const [revenue, expenses, examCounts, trialCounts] = await Promise.all([
-    prisma.clientPayment.aggregate({ _sum: { amount: true } }),
-    prisma.companyExpense.aggregate({ _sum: { amount: true } }),
-    prisma.writtenExam.groupBy({ by: ["result"], _count: { _all: true } }),
-    prisma.trialExam.groupBy({ by: ["result"], _count: { _all: true } }),
-  ]);
+const getOwnerDashboardStatsCached = unstable_cache(
+  async (): Promise<OwnerDashboardStats> => {
+    const base = await getDashboardStats();
 
-  // Pass rate is measured against decided attempts only — pending sittings
-  // would otherwise drag the rate down for no reason.
-  const examPass =
-    examCounts.find((row) => row.result === "PASS")?._count._all ?? 0;
-  const examDecided = examCounts
-    .filter((row) => row.result === "PASS" || row.result === "FAIL")
-    .reduce((sum, row) => sum + row._count._all, 0);
+    const [revenue, expenses, examCounts, trialCounts] = await Promise.all([
+      prisma.clientPayment.aggregate({ _sum: { amount: true } }),
+      prisma.companyExpense.aggregate({ _sum: { amount: true } }),
+      prisma.writtenExam.groupBy({ by: ["result"], _count: { _all: true } }),
+      prisma.trialExam.groupBy({ by: ["result"], _count: { _all: true } }),
+    ]);
 
-  const trialPass =
-    trialCounts.find((row) => row.result === "PASS")?._count._all ?? 0;
-  const trialDecided = trialCounts
-    .filter((row) => row.result === "PASS" || row.result === "FAIL")
-    .reduce((sum, row) => sum + row._count._all, 0);
+    // Pass rate is measured against decided attempts only — pending sittings
+    // would otherwise drag the rate down for no reason.
+    const examPass =
+      examCounts.find((row) => row.result === "PASS")?._count._all ?? 0;
+    const examDecided = examCounts
+      .filter((row) => row.result === "PASS" || row.result === "FAIL")
+      .reduce((sum, row) => sum + row._count._all, 0);
 
-  const revenueAllTime = toNumber(revenue._sum.amount);
-  const expensesAllTime = toNumber(expenses._sum.amount);
+    const trialPass =
+      trialCounts.find((row) => row.result === "PASS")?._count._all ?? 0;
+    const trialDecided = trialCounts
+      .filter((row) => row.result === "PASS" || row.result === "FAIL")
+      .reduce((sum, row) => sum + row._count._all, 0);
 
-  return {
-    ...base,
-    revenueAllTime,
-    expensesAllTime,
-    netIncome: revenueAllTime - expensesAllTime,
-    examPassRate:
-      examDecided > 0 ? Math.round((examPass / examDecided) * 100) : null,
-    trialPassRate:
-      trialDecided > 0 ? Math.round((trialPass / trialDecided) * 100) : null,
-    examsDecided: examDecided,
-    trialsDecided: trialDecided,
-  };
-}
+    const revenueAllTime = toNumber(revenue._sum.amount);
+    const expensesAllTime = toNumber(expenses._sum.amount);
+
+    return {
+      ...base,
+      revenueAllTime,
+      expensesAllTime,
+      netIncome: revenueAllTime - expensesAllTime,
+      examPassRate:
+        examDecided > 0 ? Math.round((examPass / examDecided) * 100) : null,
+      trialPassRate:
+        trialDecided > 0 ? Math.round((trialPass / trialDecided) * 100) : null,
+      examsDecided: examDecided,
+      trialsDecided: trialDecided,
+    };
+  },
+  ["lanka-learners-owner-dashboard-stats"],
+  { revalidate: 15 }
+);
+
+export const getOwnerDashboardStats = cache(async (): Promise<OwnerDashboardStats> => {
+  return getOwnerDashboardStatsCached();
+});
