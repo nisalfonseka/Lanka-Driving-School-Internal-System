@@ -6,6 +6,7 @@ import type { Role } from "@/generated/prisma/enums";
 
 export const SESSION_COOKIE = "ll_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
+export const REMEMBER_ME_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 /**
  * Minimum claims only. Never put names, emails or anything sensitive in here —
@@ -30,14 +31,17 @@ function secretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function signSessionToken(claims: SessionClaims): Promise<string> {
+export async function signSessionToken(
+  claims: SessionClaims,
+  maxAgeSeconds = SESSION_MAX_AGE_SECONDS
+): Promise<string> {
   return new SignJWT({ role: claims.role, tv: claims.tv })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(claims.sub)
     .setIssuedAt()
     .setIssuer("lanka-learners")
     .setAudience("lanka-learners")
-    .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
+    .setExpirationTime(`${maxAgeSeconds}s`)
     .sign(secretKey());
 }
 

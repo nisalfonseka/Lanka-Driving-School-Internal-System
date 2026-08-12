@@ -7,6 +7,7 @@ export const loginSchema = z.object({
     .min(1, "Username is required")
     .max(60, "Username is too long"),
   password: z.string().min(1, "Password is required").max(200),
+  rememberMe: z.boolean().default(false),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

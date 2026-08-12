@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
+  REMEMBER_ME_SESSION_MAX_AGE_SECONDS,
   signSessionToken,
   verifySessionToken,
 } from "./jwt";
@@ -35,16 +36,25 @@ export class UnauthorizedError extends Error {
   }
 }
 
-export async function createSession(user: {
-  id: string;
-  role: "OWNER" | "EMPLOYEE";
-  tokenVersion: number;
-}): Promise<void> {
-  const token = await signSessionToken({
-    sub: user.id,
-    role: user.role,
-    tv: user.tokenVersion,
-  });
+export async function createSession(
+  user: {
+    id: string;
+    role: "OWNER" | "EMPLOYEE";
+    tokenVersion: number;
+  },
+  options?: { rememberMe?: boolean }
+): Promise<void> {
+  const maxAge = options?.rememberMe
+    ? REMEMBER_ME_SESSION_MAX_AGE_SECONDS
+    : SESSION_MAX_AGE_SECONDS;
+  const token = await signSessionToken(
+    {
+      sub: user.id,
+      role: user.role,
+      tv: user.tokenVersion,
+    },
+    maxAge
+  );
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -52,7 +62,7 @@ export async function createSession(user: {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge,
   });
 }
 

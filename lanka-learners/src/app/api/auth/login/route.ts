@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { username, password } = parsed.data;
+  const { username, password, rememberMe } = parsed.data;
 
   const forwardedFor = request.headers.get("x-forwarded-for");
   const ip =
@@ -83,11 +83,14 @@ export async function POST(request: Request) {
 
     clearLoginAttempts(rateKey);
 
-    await createSession({
-      id: result.user.id,
-      role: result.user.role,
-      tokenVersion: result.user.tokenVersion,
-    });
+    await createSession(
+      {
+        id: result.user.id,
+        role: result.user.role,
+        tokenVersion: result.user.tokenVersion,
+      },
+      { rememberMe }
+    );
 
     await prisma.user.update({
       where: { id: result.user.id },
