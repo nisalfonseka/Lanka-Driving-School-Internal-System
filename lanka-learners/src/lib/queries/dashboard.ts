@@ -1,6 +1,11 @@
 import "server-only";
 
-import { startOfMonth, startOfNextMonth } from "@/lib/dates";
+import {
+  startOfMonth,
+  startOfNextMonth,
+  startOfToday,
+  startOfTomorrow,
+} from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { toNumber } from "@/lib/format";
 
@@ -11,6 +16,9 @@ export type DashboardStats = {
   paymentsThisMonth: number;
   expensesThisMonth: number;
   outstandingPayments: number;
+  todayNewClients: number;
+  todayPayments: number;
+  todayExpenses: number;
 };
 
 export type OwnerDashboardStats = DashboardStats & {
@@ -26,6 +34,8 @@ export type OwnerDashboardStats = DashboardStats & {
 export async function getDashboardStats(): Promise<DashboardStats> {
   const monthStart = startOfMonth();
   const monthEnd = startOfNextMonth();
+  const todayStart = startOfToday();
+  const tomorrowStart = startOfTomorrow();
 
   const [
     totalClients,
@@ -35,6 +45,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     expensesThisMonth,
     agreedFees,
     paidTotal,
+    todayNewClients,
+    todayPayments,
+    todayExpenses,
   ] = await Promise.all([
     prisma.client.count(),
     prisma.client.count({ where: { status: "ACTIVE" } }),
@@ -58,6 +71,17 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       _sum: { amount: true },
       where: { client: { status: { not: "INACTIVE" } } },
     }),
+    prisma.client.count({
+      where: { registeredDate: { gte: todayStart, lt: tomorrowStart } },
+    }),
+    prisma.clientPayment.aggregate({
+      _sum: { amount: true },
+      where: { paymentDate: { gte: todayStart, lt: tomorrowStart } },
+    }),
+    prisma.companyExpense.aggregate({
+      _sum: { amount: true },
+      where: { expenseDate: { gte: todayStart, lt: tomorrowStart } },
+    }),
   ]);
 
   const outstanding =
@@ -70,6 +94,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     paymentsThisMonth: toNumber(paymentsThisMonth._sum.amount),
     expensesThisMonth: toNumber(expensesThisMonth._sum.amount),
     outstandingPayments: Math.max(0, outstanding),
+    todayNewClients,
+    todayPayments: toNumber(todayPayments._sum.amount),
+    todayExpenses: toNumber(todayExpenses._sum.amount),
   };
 }
 

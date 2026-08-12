@@ -38,6 +38,17 @@ export function startOfMonth(reference = new Date()): Date {
   );
 }
 
+export function startOfToday(reference = new Date()): Date {
+  return new Date(
+    Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth(), reference.getUTCDate())
+  );
+}
+
+export function startOfTomorrow(reference = new Date()): Date {
+  const today = startOfToday(reference);
+  return new Date(today.getTime() + 24 * 60 * 60 * 1000);
+}
+
 export function startOfNextMonth(reference = new Date()): Date {
   return new Date(
     Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() + 1, 1)
