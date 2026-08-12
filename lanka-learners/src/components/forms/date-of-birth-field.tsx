@@ -96,6 +96,23 @@ export function DateOfBirthField({
     }
   }
 
+  function handleMonth(raw: string) {
+    const cleaned = digitsOnly(raw).slice(0, 2);
+
+    // Allow a single digit while typing (2 becomes 02 on blur), but never
+    // allow a completed month outside the calendar range 01–12.
+    if (cleaned.length === 2) {
+      const month = Number(cleaned);
+      if (month < 1 || month > 12) return;
+    }
+
+    update({ ...parts, month: cleaned });
+    if (cleaned.length === 2 && dayRef.current) {
+      dayRef.current.focus();
+      dayRef.current.select();
+    }
+  }
+
   /** Backspace in an empty box steps back to the previous one. */
   function handleKeyDown(
     event: React.KeyboardEvent<HTMLInputElement>,
@@ -112,6 +129,11 @@ export function DateOfBirthField({
 
   /** Pads 1-digit month/day on blur: "7" becomes "07". */
   function padOnBlur(key: "day" | "month") {
+    if (key === "month" && parts[key] === "0") {
+      update({ ...parts, month: "" });
+      onBlur?.();
+      return;
+    }
     if (parts[key].length === 1) {
       update({ ...parts, [key]: parts[key].padStart(2, "0") });
     }
@@ -160,9 +182,7 @@ export function DateOfBirthField({
         aria-invalid={invalid || undefined}
         className={boxClass}
         value={parts.month}
-        onChange={(event) =>
-          handlePart("month", event.target.value, 2, dayRef)
-        }
+        onChange={(event) => handleMonth(event.target.value)}
         onKeyDown={(event) => handleKeyDown(event, "month", yearRef)}
         onBlur={() => padOnBlur("month")}
       />

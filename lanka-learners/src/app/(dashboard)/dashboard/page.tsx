@@ -38,7 +38,7 @@ function OperationTile({ item, index }: { item: NavItem; index: number }) {
   return (
     <Link
       href={item.href}
-      className={`group flex min-h-40 items-center gap-4 rounded-2xl px-5 py-5 shadow-sm shadow-foreground/10 outline-none transition-[transform,box-shadow,filter] hover:-translate-y-1 hover:shadow-lg hover:brightness-105 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-44 sm:px-6 ${TILE_SURFACES[index % TILE_SURFACES.length]}`}
+      className={`group flex w-full max-w-[320px] min-h-40 items-center gap-4 rounded-2xl px-5 py-5 shadow-sm shadow-foreground/10 outline-none transition-[transform,box-shadow,filter] hover:-translate-y-1 hover:shadow-lg hover:brightness-105 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-44 sm:px-6 ${TILE_SURFACES[index % TILE_SURFACES.length]}`}
     >
       <span
         className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-current ring-1 ring-white/20"
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
                 <SettingsIcon className="size-4 text-muted-foreground" />
               </div>
             ) : null}
-            <div className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-5 lg:grid-cols-4">
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-2 justify-items-center gap-6 lg:grid-cols-4">
               {section.items.map((item, itemIndex) => (
                 <OperationTile
                   key={item.href}
