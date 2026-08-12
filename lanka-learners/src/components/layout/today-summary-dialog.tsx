@@ -30,7 +30,7 @@ export function TodaySummaryDialog({ stats }: { stats: DashboardStats }) {
           <Button
             variant="outline"
             size="sm"
-            className="border-sidebar-foreground/30 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="summary-trigger"
           />
         }
       >

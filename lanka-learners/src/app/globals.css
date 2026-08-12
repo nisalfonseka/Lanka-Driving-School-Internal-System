@@ -168,6 +168,21 @@
   }
 }
 
+/* The summary control sits on the navy top bar, so it needs its own contrast
+   token instead of inheriting the light-surface outline button treatment. */
+.summary-trigger {
+  border: 1px solid color-mix(in srgb, var(--sidebar-foreground) 48%, transparent);
+  background-color: color-mix(in srgb, var(--sidebar-foreground) 8%, transparent);
+  color: var(--sidebar-foreground);
+}
+
+.summary-trigger:hover,
+.summary-trigger:focus-visible {
+  border-color: var(--sidebar-primary);
+  background-color: color-mix(in srgb, var(--sidebar-primary) 34%, transparent);
+  color: var(--sidebar-foreground);
+}
+
 /* A calm left-to-right loading sheen communicates progress without the visual
    noise of a fast pulse. It is shared by every Skeleton in the application. */
 @keyframes shimmer {

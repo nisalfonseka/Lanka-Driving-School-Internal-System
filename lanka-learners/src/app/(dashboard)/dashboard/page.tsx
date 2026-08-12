@@ -21,15 +21,15 @@ import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const TILE_ACCENTS = [
-  "bg-chart-1/10 text-chart-1",
-  "bg-chart-2/10 text-chart-2",
-  "bg-chart-3/10 text-chart-3",
-  "bg-chart-4/10 text-chart-4",
-  "bg-chart-5/10 text-chart-5",
-  "bg-primary/10 text-primary",
-  "bg-destructive/10 text-destructive",
-  "bg-secondary/10 text-foreground",
+const TILE_SURFACES = [
+  "bg-chart-1 text-white",
+  "bg-chart-2 text-foreground",
+  "bg-chart-3 text-white",
+  "bg-chart-4 text-white",
+  "bg-chart-5 text-white",
+  "bg-primary text-primary-foreground",
+  "bg-destructive text-destructive-foreground",
+  "bg-secondary text-secondary-foreground",
 ] as const;
 
 function OperationTile({ item, index }: { item: NavItem; index: number }) {
@@ -38,17 +38,17 @@ function OperationTile({ item, index }: { item: NavItem; index: number }) {
   return (
     <Link
       href={item.href}
-      className="group flex min-h-24 items-center gap-3 rounded-xl bg-card px-4 py-3 shadow-sm shadow-foreground/[0.03] ring-1 ring-foreground/[0.07] outline-none transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/25 focus-visible:ring-3 focus-visible:ring-ring/50"
+      className={`group flex min-h-40 items-center gap-4 rounded-2xl px-5 py-5 shadow-sm shadow-foreground/10 outline-none transition-[transform,box-shadow,filter] hover:-translate-y-1 hover:shadow-lg hover:brightness-105 focus-visible:ring-3 focus-visible:ring-ring/50 sm:min-h-44 sm:px-6 ${TILE_SURFACES[index % TILE_SURFACES.length]}`}
     >
       <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${TILE_ACCENTS[index % TILE_ACCENTS.length]}`}
+        className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-current ring-1 ring-white/20"
       >
         <Icon className="size-5" />
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+      <span className="min-w-0 flex-1 text-base font-semibold tracking-tight sm:text-lg">
         {item.label}
       </span>
-      <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary" />
+      <ArrowUpRightIcon className="size-5 shrink-0 text-current/70 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-current" />
     </Link>
   );
 }
@@ -137,7 +137,7 @@ export default async function DashboardPage() {
                 <SettingsIcon className="size-4 text-muted-foreground" />
               </div>
             ) : null}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {section.items.map((item, itemIndex) => (
                 <OperationTile
                   key={item.href}
