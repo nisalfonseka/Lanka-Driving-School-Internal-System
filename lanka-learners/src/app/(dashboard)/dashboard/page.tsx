@@ -13,15 +13,11 @@ import Link from "next/link";
 
 import type { NavItem } from "@/components/layout/nav-config";
 import { navSectionsFor } from "@/components/layout/nav-config";
-import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth/session";
 import { formatCurrency } from "@/lib/format";
-import {
-  getDashboardStats,
-  getOwnerDashboardStats,
-} from "@/lib/queries/dashboard";
+import { getOwnerDashboardStats } from "@/lib/queries/dashboard";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -57,7 +53,7 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const isOwner = user.role === "OWNER";
   const ownerStats = isOwner ? await getOwnerDashboardStats() : null;
-  const stats = ownerStats ?? (await getDashboardStats());
+  const todayStats = ownerStats;
   const navigationSections = navSectionsFor(user.role).map((section) => ({
     ...section,
     items: section.items.filter((item) => item.href !== "/dashboard"),
@@ -92,24 +88,7 @@ export default async function DashboardPage() {
             </Button>
           </div>
         </div>
-      ) : (
-        <PageHeader
-          title={`Welcome back, ${user.fullName.split(" ")[0]}`}
-          description="Your daily operations overview."
-          actions={
-            <>
-              <Button render={<Link href="/clients/new" />}>
-                <UserPlusIcon className="size-4" />
-                Register client
-              </Button>
-              <Button variant="outline" render={<Link href="/payments" />}>
-                <BanknoteIcon className="size-4" />
-                Add payment
-              </Button>
-            </>
-          }
-        />
-      )}
+      ) : null}
 
       {isOwner ? (
         <section>
@@ -125,40 +104,28 @@ export default async function DashboardPage() {
             <BarChart3Icon className="size-5 text-muted-foreground" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard label="Active clients" value={stats.activeClients} icon={UsersIcon} />
-            <StatCard label="New today" value={stats.todayNewClients} icon={UserPlusIcon} />
+            <StatCard label="Active clients" value={todayStats!.activeClients} icon={UsersIcon} />
+            <StatCard label="New today" value={todayStats!.todayNewClients} icon={UserPlusIcon} />
             <StatCard
               label="Payments today"
-              value={formatCurrency(stats.todayPayments)}
+              value={formatCurrency(todayStats!.todayPayments)}
               icon={BanknoteIcon}
               tone="positive"
             />
             <StatCard
               label="Expenses today"
-              value={formatCurrency(stats.todayExpenses)}
+              value={formatCurrency(todayStats!.todayExpenses)}
               icon={ReceiptIcon}
             />
             <StatCard
               label="Outstanding"
-              value={formatCurrency(stats.outstandingPayments)}
+              value={formatCurrency(todayStats!.outstandingPayments)}
               icon={WalletIcon}
-              tone={stats.outstandingPayments > 0 ? "warning" : "default"}
+              tone={todayStats!.outstandingPayments > 0 ? "warning" : "default"}
             />
           </div>
         </section>
-      ) : (
-        <>
-          <PageHeader title="At a glance" description="The latest numbers across your school." />
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <StatCard label="Total Clients" value={stats.totalClients} icon={UsersIcon} />
-            <StatCard label="Active Clients" value={stats.activeClients} icon={UsersIcon} />
-            <StatCard label="New This Month" value={stats.newClientsThisMonth} icon={UserPlusIcon} />
-            <StatCard label="Payments This Month" value={formatCurrency(stats.paymentsThisMonth)} icon={BanknoteIcon} tone="positive" />
-            <StatCard label="Expenses This Month" value={formatCurrency(stats.expensesThisMonth)} icon={ReceiptIcon} />
-            <StatCard label="Outstanding Payments" value={formatCurrency(stats.outstandingPayments)} hint="Agreed fees not yet collected" icon={WalletIcon} tone={stats.outstandingPayments > 0 ? "warning" : "default"} />
-          </section>
-        </>
-      )}
+      ) : null}
 
       <div className="space-y-8">
         {navigationSections.map((section, sectionIndex) => (

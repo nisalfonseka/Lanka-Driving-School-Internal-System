@@ -2,9 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { LayoutGridIcon } from "lucide-react";
 
+import { SriLankaClock } from "@/components/layout/sri-lanka-clock";
+import { TodaySummaryDialog } from "@/components/layout/today-summary-dialog";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth/session";
+import { getDashboardStats } from "@/lib/queries/dashboard";
 import { getSettings } from "@/lib/settings";
 
 export default async function DashboardLayout({
@@ -16,6 +20,41 @@ export default async function DashboardLayout({
   // this also catches accounts deactivated since the token was issued.
   const user = await requireUser();
   const settings = await getSettings();
+  const [stats, profileRecord, activity] = await Promise.all([
+    getDashboardStats(),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        fullName: true,
+        username: true,
+        email: true,
+        mobile: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.auditLog.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      select: { id: true, description: true, action: true, createdAt: true },
+    }),
+  ]);
+
+  if (!profileRecord) return null;
+
+  const profile = {
+    ...profileRecord,
+    role: profileRecord.role as "OWNER" | "EMPLOYEE",
+    lastLoginAt: profileRecord.lastLoginAt?.toISOString() ?? null,
+    createdAt: profileRecord.createdAt.toISOString(),
+    activity: activity.map((entry) => ({
+      ...entry,
+      createdAt: entry.createdAt.toISOString(),
+    })),
+  };
 
   return (
     <div className="min-h-dvh bg-muted/25">
@@ -44,6 +83,8 @@ export default async function DashboardLayout({
           </Link>
 
           <div className="ml-auto flex items-center gap-2">
+            <SriLankaClock />
+            <TodaySummaryDialog stats={stats} />
             <Button
               variant="ghost"
               className="text-muted-foreground"
@@ -56,6 +97,7 @@ export default async function DashboardLayout({
               fullName={user.fullName}
               username={user.username}
               role={user.role}
+              profile={profile}
             />
           </div>
         </div>

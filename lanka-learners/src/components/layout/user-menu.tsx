@@ -1,10 +1,10 @@
 "use client";
 
 import { LoaderIcon, LogOutIcon, UserIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ProfileDialog, type ProfileData } from "@/components/layout/profile-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,13 +32,15 @@ export function UserMenu({
   fullName,
   username,
   role,
+  profile,
 }: {
   fullName: string;
   username: string;
   role: "OWNER" | "EMPLOYEE";
+  profile: ProfileData;
 }) {
-  const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
@@ -94,7 +96,7 @@ export function UserMenu({
 
           <DropdownMenuSeparator />
 
-          <DropdownMenuItem onClick={() => router.push("/profile")}>
+          <DropdownMenuItem onClick={() => setProfileOpen(true)}>
             <UserIcon className="size-4" />
             Profile
           </DropdownMenuItem>
@@ -115,6 +117,12 @@ export function UserMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ProfileDialog
+        profile={profile}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
 
       <AlertDialog
         open={confirmOpen}
