@@ -76,6 +76,25 @@ enum TrainingStatus {
   CANCELLED
 }
 
+/// Bookable one-hour training slots. Tea (11:00–11:30) and lunch
+/// (13:30–14:00) breaks are not bookable and so have no value here.
+enum BookingSlot {
+  SLOT_0800
+  SLOT_0900
+  SLOT_1000
+  SLOT_1130
+  SLOT_1230
+  SLOT_1400
+  SLOT_1500
+  SLOT_1600
+}
+
+enum BookingAttendance {
+  PENDING
+  PRESENT
+  ABSENT
+}
+
 enum PaymentType {
   ADVANCE
   INSTALLMENT
@@ -121,6 +140,10 @@ enum AuditAction {
   CREATE_VEHICLE_CLASS
   UPDATE_VEHICLE_CLASS
   UPDATE_SETTINGS
+  CREATE_TRAINING_BOOKING
+  UPDATE_TRAINING_BOOKING
+  UPDATE_BOOKING_ATTENDANCE
+  DELETE_TRAINING_BOOKING
 }
 
 // ---------------------------------------------------------------------------
@@ -166,6 +189,9 @@ model User {
 
   createdExpenses CompanyExpense[] @relation("ExpenseCreatedBy")
   updatedExpenses CompanyExpense[] @relation("ExpenseUpdatedBy")
+
+  createdBookings TrainingBooking[] @relation("BookingCreatedBy")
+  updatedBookings TrainingBooking[] @relation("BookingUpdatedBy")
 
   @@index([role])
   @@index([status])
@@ -420,6 +446,37 @@ model PracticalTrainingClass {
   @@unique([trainingId, vehicleClassId])
   @@index([vehicleClassId])
   @@map("practical_training_classes")
+}
+
+// ---------------------------------------------------------------------------
+// Training bookings — a standalone day planner, not linked to clients or to
+// practical training records.
+// ---------------------------------------------------------------------------
+
+model TrainingBooking {
+  id String @id @default(cuid())
+
+  bookingDate   DateTime
+  slot          BookingSlot
+  /// 1 or 2 — each slot holds at most two people. The unique index below is
+  /// what actually enforces the limit, even under concurrent bookings.
+  seat          Int
+  name          String
+  contactNumber String
+  attendance    BookingAttendance @default(PENDING)
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User? @relation("BookingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("BookingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([bookingDate, slot, seat])
+  @@index([bookingDate])
+  @@map("training_bookings")
 }
 
 // ---------------------------------------------------------------------------

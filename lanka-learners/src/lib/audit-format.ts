@@ -34,6 +34,10 @@ const ACTION_LABELS: Record<string, string> = {
   CREATE_VEHICLE_CLASS: "Added a vehicle class",
   UPDATE_VEHICLE_CLASS: "Updated a vehicle class",
   UPDATE_SETTINGS: "Changed system settings",
+  CREATE_TRAINING_BOOKING: "Added a training booking",
+  UPDATE_TRAINING_BOOKING: "Updated a training booking",
+  UPDATE_BOOKING_ATTENDANCE: "Marked booking attendance",
+  DELETE_TRAINING_BOOKING: "Cancelled a training booking",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -47,6 +51,7 @@ const ENTITY_LABELS: Record<string, string> = {
   User: "Employee",
   VehicleClass: "Vehicle class",
   SystemSetting: "Settings",
+  TrainingBooking: "Training booking",
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -86,6 +91,9 @@ const FIELD_LABELS: Record<string, string> = {
   name: "Name",
   key: "Setting",
   value: "Value",
+  bookingDate: "Booking date",
+  timeSlot: "Time slot",
+  contactNumber: "Contact number",
 };
 
 const MONEY_FIELDS = new Set(["amount", "totalAgreedFee"]);

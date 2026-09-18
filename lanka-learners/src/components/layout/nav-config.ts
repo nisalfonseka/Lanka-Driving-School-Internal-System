@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BanknoteIcon,
   BookOpenIcon,
+  CalendarClockIcon,
   CarIcon,
   ChartColumnIcon,
   ClipboardListIcon,
@@ -75,6 +76,12 @@ const OPERATIONS: NavSection = {
       href: "/practical-training",
       icon: CarIcon,
       description: "Record driving lessons, vehicles and instructors.",
+    },
+    {
+      label: "Training Booking",
+      href: "/training-bookings",
+      icon: CalendarClockIcon,
+      description: "Book daily training time slots and mark attendance.",
     },
     {
       label: "Payments",

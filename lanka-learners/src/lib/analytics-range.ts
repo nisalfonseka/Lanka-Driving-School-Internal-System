@@ -4,6 +4,10 @@
  * a UTC-midnight Date representing a Sri Lankan calendar day.
  */
 
+import { sriLankaToday } from "@/lib/dates";
+
+export { sriLankaToday };
+
 export const ANALYTICS_PRESETS = [
   { value: "today", label: "Today" },
   { value: "yesterday", label: "Yesterday" },
@@ -30,18 +34,6 @@ export type ResolvedRange = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Today's calendar date in Sri Lanka, as a UTC-midnight Date. */
-export function sriLankaToday(now = new Date()): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Colombo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now); // YYYY-MM-DD
-  const [year, month, day] = parts.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * DAY_MS);

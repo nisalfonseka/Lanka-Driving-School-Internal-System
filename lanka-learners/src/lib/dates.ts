@@ -26,6 +26,18 @@ export function toUtcDateOnly(value: Date | string): Date {
   );
 }
 
+/** Today's calendar date in Sri Lanka, as a UTC-midnight Date. */
+export function sriLankaToday(now = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Colombo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now); // YYYY-MM-DD
+  const [year, month, day] = parts.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 /** Inclusive end of day, for `lte` range filters. */
 export function endOfUtcDay(value: Date | string): Date {
   const start = toUtcDateOnly(value);

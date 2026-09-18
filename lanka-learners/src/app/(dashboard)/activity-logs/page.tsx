@@ -63,6 +63,10 @@ const ACTIONS = [
   "CREATE_VEHICLE_CLASS",
   "UPDATE_VEHICLE_CLASS",
   "UPDATE_SETTINGS",
+  "CREATE_TRAINING_BOOKING",
+  "UPDATE_TRAINING_BOOKING",
+  "UPDATE_BOOKING_ATTENDANCE",
+  "DELETE_TRAINING_BOOKING",
 ] as const;
 
 const ENTITY_TYPES = [
@@ -76,6 +80,7 @@ const ENTITY_TYPES = [
   "User",
   "VehicleClass",
   "SystemSetting",
+  "TrainingBooking",
 ] as const;
 
 export default async function ActivityLogsPage({

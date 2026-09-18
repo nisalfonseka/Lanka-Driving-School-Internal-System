@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { BOOKING_SLOTS } from "@/lib/booking-slots";
+
 import {
   amountSchema,
   cuidSchema,
@@ -220,6 +222,51 @@ export const expenseUpdateSchema = z.object({ id: cuidSchema, ...expenseShape })
 
 export type ExpenseCreateInput = z.infer<typeof expenseCreateSchema>;
 export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// Training bookings
+// ---------------------------------------------------------------------------
+
+export const bookingSlotEnum = z.enum(BOOKING_SLOTS, {
+  error: "Select a time slot",
+});
+export const bookingAttendanceEnum = z.enum(["PENDING", "PRESENT", "ABSENT"]);
+
+/** Any phone number: 9–15 digits, optionally with +, spaces or dashes. */
+const contactNumberSchema = z
+  .string()
+  .trim()
+  .min(1, "Contact number is required")
+  .refine((value) => /^\+?[\d\s-]+$/.test(value), "Enter a valid phone number")
+  .refine((value) => {
+    const digits = value.replace(/\D/g, "").length;
+    return digits >= 9 && digits <= 15;
+  }, "Enter a valid phone number");
+
+const bookingShape = {
+  bookingDate: dateStringSchema,
+  slot: bookingSlotEnum,
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name is required")
+    .max(120, "Name is too long"),
+  contactNumber: contactNumberSchema,
+};
+
+export const bookingCreateSchema = z.object(bookingShape);
+export const bookingUpdateSchema = z.object({
+  id: cuidSchema,
+  ...bookingShape,
+  attendance: bookingAttendanceEnum,
+});
+export const bookingAttendanceSchema = z.object({
+  id: cuidSchema,
+  attendance: bookingAttendanceEnum,
+});
+
+export type BookingCreateInput = z.infer<typeof bookingCreateSchema>;
+export type BookingUpdateInput = z.infer<typeof bookingUpdateSchema>;
 
 // ---------------------------------------------------------------------------
 // Shared search parameters
