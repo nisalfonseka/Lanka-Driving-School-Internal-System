@@ -13,7 +13,6 @@ import {
   type ClientOption,
 } from "@/components/forms/client-picker";
 import { Field } from "@/components/forms/field";
-import { SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,24 +24,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "@/lib/format";
 import { trialCreateSchema } from "@/lib/validations/operations";
-
-const RESULT_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "PASS", label: "Pass" },
-  { value: "FAIL", label: "Fail" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
 
 type FormValues = {
   clientId: string;
   trialDate: string;
   dmtBarcode?: string;
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
-  resultNotes?: string;
 };
 
 type ExistingTrial = {
@@ -51,8 +39,6 @@ type ExistingTrial = {
   clientLabel: string;
   trialDate: Date | string;
   dmtBarcode: string | null;
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
-  resultNotes: string | null;
 };
 
 export function TrialDialog({
@@ -89,15 +75,11 @@ export function TrialDialog({
           clientId: trial.clientId,
           trialDate: toDateInputValue(trial.trialDate),
           dmtBarcode: trial.dmtBarcode ?? "",
-          result: trial.result,
-          resultNotes: trial.resultNotes ?? "",
         }
       : {
           clientId: defaultClientId ?? "",
           trialDate: new Date().toISOString().slice(0, 10),
           dmtBarcode: "",
-          result: "PENDING",
-          resultNotes: "",
         },
   });
 
@@ -156,7 +138,7 @@ export function TrialDialog({
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the recorded trial result."
+              ? "Correct the trial date or DMT barcode. Use Add Results for the result."
               : "Record a practical trial. A client may sit several trials."}
           </DialogDescription>
         </DialogHeader>
@@ -212,28 +194,14 @@ export function TrialDialog({
               </Field>
             ) : null}
 
-            <Field label="Result" required error={errors.result?.message}>
-              <Controller
-                control={control}
-                name="result"
-                render={({ field }) => (
-                  <SelectField
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={RESULT_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
           </div>
 
-          <Field
-            label="Result Notes"
-            htmlFor="resultNotes"
-            error={errors.resultNotes?.message}
-          >
-            <Textarea id="resultNotes" rows={3} {...register("resultNotes")} />
-          </Field>
+          {!isEdit ? (
+            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              New records start as <span className="font-medium text-foreground">Pending</span>.
+              Record the outcome later with the <span className="font-medium text-foreground">Add Results</span> button.
+            </p>
+          ) : null}
         </form>
 
         <DialogFooter>

@@ -45,6 +45,8 @@ export default async function LecturesPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  // Started now so it runs alongside the search instead of after it.
+  const clientsPromise = getClientOptions();
 
   const { rows, total, presentCount, page, pageSize } = await searchLectures({
     q: readText(params.q),
@@ -55,7 +57,7 @@ export default async function LecturesPage({
     extra: { status: readEnum(params.status, STATUSES) },
   });
 
-  const clients = await getClientOptions();
+  const clients = await clientsPromise;
 
   return (
     <>
@@ -167,7 +169,6 @@ export default async function LecturesPage({
                               clientId: lecture.client.id,
                               clientLabel: `${lecture.client.fullName} · ${lecture.client.admissionNumber}`,
                               attendanceDate: lecture.attendanceDate,
-                              status: lecture.status,
                             }}
                           />
                         ) : null}

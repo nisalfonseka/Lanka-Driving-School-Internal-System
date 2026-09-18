@@ -57,14 +57,15 @@ export default async function ClientProfilePage({
   const user = await requireUser();
   const { id } = await params;
 
-  const profile = await getClientProfile(id);
-  if (!profile) notFound();
-
-  const { client, finance } = profile;
-  const [records, vehicleClasses] = await Promise.all([
+  // Everything the profile needs is fetched in parallel.
+  const [profile, records, vehicleClasses] = await Promise.all([
+    getClientProfile(id),
     getClientRecords(id),
     getActiveVehicleClasses(),
   ]);
+  if (!profile) notFound();
+
+  const { client, finance } = profile;
   // Add dialogs opened from the profile are locked to this client.
   const clientLabel = `${client.fullName} · ${client.admissionNumber}`;
   // Employees get a read-only list; only owners may correct existing records.
@@ -88,7 +89,6 @@ export default async function ClientProfilePage({
                   fill
                   sizes="80px"
                   className="object-cover"
-                  unoptimized
                 />
               ) : (
                 initials(client.fullName)
@@ -420,7 +420,6 @@ export default async function ClientProfilePage({
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>DMT Barcode</TableHead>
-                      <TableHead>Attendance</TableHead>
                       <TableHead>Result</TableHead>
                       <TableHead>Entered By</TableHead>
                       <TableHead className="text-right">Action</TableHead>
@@ -432,9 +431,6 @@ export default async function ClientProfilePage({
                         <TableCell>{formatDate(exam.examDate)}</TableCell>
                         <TableCell className="tabular">
                           {exam.dmtBarcode ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge value={exam.attendance} />
                         </TableCell>
                         <TableCell>
                           <StatusBadge value={exam.result} />

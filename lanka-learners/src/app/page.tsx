@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   title: "Sign in",
 };
 
-const LOGIN_IMAGE =
-  "/ChatGPT%20Image%20Aug%2012%2C%202026%2C%2010_01_44%20PM.png";
+// A compressed JPEG copy of the original 2.3 MB PNG (same image, ~400 KB).
+const LOGIN_IMAGE = "/login-hero.jpg";
 
 /**
  * The sign-in screen is the application's front door — there is no public

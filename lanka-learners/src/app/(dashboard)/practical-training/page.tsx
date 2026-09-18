@@ -46,6 +46,8 @@ export default async function PracticalTrainingPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  // Started now so it runs alongside the search instead of after it.
+  const clientsPromise = getClientOptions();
   const vehicleClasses = await getActiveVehicleClasses();
 
   // Only accept a vehicle class id that actually exists.
@@ -64,7 +66,7 @@ export default async function PracticalTrainingPage({
     extra: { vehicleClassId, status: readEnum(params.status, STATUSES) },
   });
 
-  const clients = await getClientOptions();
+  const clients = await clientsPromise;
 
   return (
     <>
@@ -205,7 +207,6 @@ export default async function PracticalTrainingPage({
                               vehicleClassIds: training.vehicleClasses.map(
                                 (link) => link.vehicleClassId
                               ),
-                              status: training.status,
                               notes: training.notes,
                             }}
                           />

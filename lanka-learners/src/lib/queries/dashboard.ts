@@ -9,6 +9,7 @@ import {
   startOfToday,
   startOfTomorrow,
 } from "@/lib/dates";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import { toNumber } from "@/lib/format";
 
@@ -101,7 +102,7 @@ const getDashboardStatsCached = unstable_cache(
     };
   },
   ["lanka-learners-dashboard-stats"],
-  { revalidate: 15 }
+  { revalidate: 60, tags: [CACHE_TAGS.stats] }
 );
 
 export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
@@ -150,7 +151,7 @@ const getOwnerDashboardStatsCached = unstable_cache(
     };
   },
   ["lanka-learners-owner-dashboard-stats"],
-  { revalidate: 15 }
+  { revalidate: 60, tags: [CACHE_TAGS.stats] }
 );
 
 export const getOwnerDashboardStats = cache(async (): Promise<OwnerDashboardStats> => {

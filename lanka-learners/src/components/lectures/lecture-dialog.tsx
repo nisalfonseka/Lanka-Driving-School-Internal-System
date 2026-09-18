@@ -13,7 +13,6 @@ import {
   type ClientOption,
 } from "@/components/forms/client-picker";
 import { Field } from "@/components/forms/field";
-import { SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,17 +27,9 @@ import { Input } from "@/components/ui/input";
 import { toDateInputValue } from "@/lib/format";
 import { lectureCreateSchema } from "@/lib/validations/operations";
 
-const STATUS_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "PRESENT", label: "Present" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
-
 type FormValues = {
   clientId: string;
   attendanceDate: string;
-  status: "PENDING" | "PRESENT" | "ABSENT" | "CANCELLED";
 };
 
 type ExistingLecture = {
@@ -46,7 +37,6 @@ type ExistingLecture = {
   clientId: string;
   clientLabel: string;
   attendanceDate: Date | string;
-  status: "PENDING" | "PRESENT" | "ABSENT" | "CANCELLED";
 };
 
 export function LectureDialog({
@@ -82,12 +72,10 @@ export function LectureDialog({
       ? {
           clientId: lecture.clientId,
           attendanceDate: toDateInputValue(lecture.attendanceDate),
-          status: lecture.status,
         }
       : {
           clientId: defaultClientId ?? "",
           attendanceDate: new Date().toISOString().slice(0, 10),
-          status: "PRESENT",
         },
   });
 
@@ -192,21 +180,14 @@ export function LectureDialog({
                 {...register("attendanceDate")}
               />
             </Field>
-
-            <Field label="Status" required error={errors.status?.message}>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <SelectField
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={STATUS_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
           </div>
+
+          {!isEdit ? (
+            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              New records start as <span className="font-medium text-foreground">Pending</span>.
+              Record the outcome later with the <span className="font-medium text-foreground">Add Results</span> button.
+            </p>
+          ) : null}
         </form>
 
         <DialogFooter>

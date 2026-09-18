@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate, humanise } from "@/lib/format";
@@ -14,7 +15,7 @@ import {
   trialUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { zodFieldErrors } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /** Practical trials. A client may sit as many as needed. */
 
@@ -45,8 +46,7 @@ export async function createTrialAction(
         clientId: data.clientId,
         trialDate: toUtcDateOnly(data.trialDate),
         dmtBarcode: data.dmtBarcode ?? null,
-        result: data.result,
-        resultNotes: data.resultNotes ?? null,
+        result: "PENDING",
         createdById: user.id,
       },
       select: { id: true },
@@ -58,11 +58,16 @@ export async function createTrialAction(
       entityType: "TrialExam",
       entityId: trial.id,
       description: `Added practical trial on ${formatDate(data.trialDate)} for ${client.fullName} (${client.admissionNumber})`,
-      newData: data,
+      newData: {
+        trialDate: data.trialDate,
+        dmtBarcode: data.dmtBarcode,
+        result: "PENDING",
+      },
     });
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: trial.id });
   });
@@ -98,8 +103,6 @@ export async function updateTrialAction(
         clientId: data.clientId,
         trialDate: toUtcDateOnly(data.trialDate),
         dmtBarcode: data.dmtBarcode ?? null,
-        result: data.result,
-        resultNotes: data.resultNotes ?? null,
         updatedById: user.id,
       },
     });
@@ -113,19 +116,16 @@ export async function updateTrialAction(
       oldData: {
         trialDate: existing.trialDate,
         dmtBarcode: existing.dmtBarcode,
-        result: existing.result,
-        resultNotes: existing.resultNotes,
       },
       newData: {
         trialDate: data.trialDate,
         dmtBarcode: data.dmtBarcode,
-        result: data.result,
-        resultNotes: data.resultNotes,
       },
     });
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });
@@ -177,6 +177,7 @@ export async function updateTrialResultAction(
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${existing.client.id}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });

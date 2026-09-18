@@ -41,11 +41,6 @@ enum RecordStatus {
   INACTIVE
 }
 
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-}
-
 enum ExamResult {
   PASS
   FAIL
@@ -245,6 +240,13 @@ model Client {
   @@index([registeredDate])
   @@index([status])
   @@index([fullName])
+  /// Trigram indexes make the "contains" searches (name, NIC, admission no,
+  /// mobile) use an index instead of scanning every client. Requires pg_trgm,
+  /// which the migration enables.
+  @@index([fullName(ops: raw("gin_trgm_ops"))], type: Gin, map: "clients_fullName_trgm_idx")
+  @@index([idNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "clients_idNumber_trgm_idx")
+  @@index([admissionNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "clients_admissionNumber_trgm_idx")
+  @@index([mobileMain(ops: raw("gin_trgm_ops"))], type: Gin, map: "clients_mobileMain_trgm_idx")
   @@map("clients")
 }
 
@@ -338,8 +340,7 @@ model WrittenExam {
 
   examDate   DateTime
   dmtBarcode String?
-  attendance AttendanceStatus @default(PRESENT)
-  result     ExamResult       @default(PENDING)
+  result     ExamResult @default(PENDING)
 
   createdById String?
   updatedById String?
@@ -351,7 +352,8 @@ model WrittenExam {
   createdBy User?  @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?  @relation("ExamUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  @@index([clientId])
+  /// Serves the client profile: one client's exams, newest first.
+  @@index([clientId, examDate])
   @@index([examDate])
   @@index([result])
   @@map("written_exams")
@@ -376,7 +378,7 @@ model TrialExam {
   createdBy User?  @relation("TrialCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?  @relation("TrialUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  @@index([clientId])
+  @@index([clientId, trialDate])
   @@index([trialDate])
   @@index([result])
   @@map("trial_exams")
@@ -391,7 +393,7 @@ model LectureAttendance {
   clientId String
 
   attendanceDate DateTime
-  status         LectureStatus @default(PRESENT)
+  status         LectureStatus @default(PENDING)
 
   createdById String?
   updatedById String?
@@ -415,7 +417,7 @@ model PracticalTraining {
   clientId String
 
   trainingDate DateTime
-  status       TrainingStatus @default(COMPLETED)
+  status       TrainingStatus @default(PENDING)
   notes        String?
 
   createdById String?
@@ -429,7 +431,7 @@ model PracticalTraining {
   updatedBy      User?                    @relation("TrainingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   vehicleClasses PracticalTrainingClass[]
 
-  @@index([clientId])
+  @@index([clientId, trainingDate])
   @@index([trainingDate])
   @@map("practical_trainings")
 }
@@ -503,7 +505,7 @@ model ClientPayment {
   createdBy User?  @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?  @relation("PaymentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  @@index([clientId])
+  @@index([clientId, paymentDate])
   @@index([paymentDate])
   @@map("client_payments")
 }
@@ -554,7 +556,7 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([action])
   @@index([createdAt])
   @@index([entityType, entityId])

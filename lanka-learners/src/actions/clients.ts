@@ -5,10 +5,13 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { uploadClientPhoto } from "@/lib/storage";
 import { clientFormSchema } from "@/lib/validations/client";
+
+import { expireCache } from "./_shared";
 
 /**
  * Client mutations.
@@ -140,6 +143,7 @@ export async function createClientAction(
 
     revalidatePath("/clients");
     revalidatePath("/dashboard");
+    expireCache(CACHE_TAGS.clientOptions, CACHE_TAGS.stats);
 
     return ok({ id: client.id });
   });
@@ -301,6 +305,7 @@ export async function updateClientAction(
 
     revalidatePath("/clients");
     revalidatePath(`/clients/${clientId}`);
+    expireCache(CACHE_TAGS.clientOptions, CACHE_TAGS.stats);
 
     return ok({ id: clientId });
   });

@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { createExamAction, updateExamAction } from "@/actions/exams";
 import { ClientPicker, type ClientOption } from "@/components/forms/client-picker";
 import { Field } from "@/components/forms/field";
-import { SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,25 +24,10 @@ import { Input } from "@/components/ui/input";
 import { toDateInputValue } from "@/lib/format";
 import { examCreateSchema } from "@/lib/validations/operations";
 
-const ATTENDANCE_OPTIONS = [
-  { value: "PRESENT", label: "Present" },
-  { value: "ABSENT", label: "Absent" },
-];
-
-const RESULT_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "PASS", label: "Pass" },
-  { value: "FAIL", label: "Fail" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
-
 type FormValues = {
   clientId: string;
   examDate: string;
   dmtBarcode?: string;
-  attendance: "PRESENT" | "ABSENT";
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
 };
 
 type ExistingExam = {
@@ -52,8 +36,6 @@ type ExistingExam = {
   clientLabel: string;
   examDate: Date | string;
   dmtBarcode: string | null;
-  attendance: "PRESENT" | "ABSENT";
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
 };
 
 export function ExamDialog({
@@ -91,15 +73,11 @@ export function ExamDialog({
           clientId: exam.clientId,
           examDate: toDateInputValue(exam.examDate),
           dmtBarcode: exam.dmtBarcode ?? "",
-          attendance: exam.attendance,
-          result: exam.result,
         }
       : {
           clientId: defaultClientId ?? "",
           examDate: new Date().toISOString().slice(0, 10),
           dmtBarcode: "",
-          attendance: "PRESENT",
-          result: "PENDING",
         },
   });
 
@@ -158,7 +136,7 @@ export function ExamDialog({
           </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update the recorded attendance and result."
+              ? "Correct the exam date or DMT barcode. Use Add Results for the result."
               : "Record a written exam sitting. A client may have multiple attempts."}
           </DialogDescription>
         </DialogHeader>
@@ -215,34 +193,13 @@ export function ExamDialog({
               </Field>
             ) : null}
 
-            <Field label="Attendance" required error={errors.attendance?.message}>
-              <Controller
-                control={control}
-                name="attendance"
-                render={({ field }) => (
-                  <SelectField
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={ATTENDANCE_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
-
-            <Field label="Result" required error={errors.result?.message}>
-              <Controller
-                control={control}
-                name="result"
-                render={({ field }) => (
-                  <SelectField
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={RESULT_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
           </div>
+          {!isEdit ? (
+            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              New records start as <span className="font-medium text-foreground">Pending</span>.
+              Record the outcome later with the <span className="font-medium text-foreground">Add Results</span> button.
+            </p>
+          ) : null}
         </form>
 
         <DialogFooter>

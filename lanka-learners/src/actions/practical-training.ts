@@ -59,7 +59,7 @@ export async function createTrainingAction(
       data: {
         clientId: data.clientId,
         trainingDate: toUtcDateOnly(data.trainingDate),
-        status: data.status,
+        status: "PENDING",
         notes: data.notes ?? null,
         createdById: user.id,
         vehicleClasses: {
@@ -86,7 +86,7 @@ export async function createTrainingAction(
       description: `Added practical training on ${formatDate(data.trainingDate)} (${codes}) for ${client.fullName} (${client.admissionNumber})`,
       newData: {
         trainingDate: data.trainingDate,
-        status: data.status,
+        status: "PENDING",
         notes: data.notes,
         vehicleClasses: codes,
       },
@@ -134,7 +134,6 @@ export async function updateTrainingAction(
         data: {
           clientId: data.clientId,
           trainingDate: toUtcDateOnly(data.trainingDate),
-          status: data.status,
           notes: data.notes ?? null,
           updatedById: user.id,
         },
@@ -159,7 +158,6 @@ export async function updateTrainingAction(
       description: `Corrected practical training for ${existing.client.fullName} (${existing.client.admissionNumber})`,
       oldData: {
         trainingDate: existing.trainingDate,
-        status: existing.status,
         notes: existing.notes,
         vehicleClasses: existing.vehicleClasses
           .map((link) => link.vehicleClass.code)
@@ -167,7 +165,6 @@ export async function updateTrainingAction(
       },
       newData: {
         trainingDate: data.trainingDate,
-        status: data.status,
         notes: data.notes,
       },
     });

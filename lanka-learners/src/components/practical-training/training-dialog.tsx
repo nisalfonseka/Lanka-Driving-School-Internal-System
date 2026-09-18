@@ -16,7 +16,6 @@ import {
   type ClientOption,
 } from "@/components/forms/client-picker";
 import { Field } from "@/components/forms/field";
-import { SelectField } from "@/components/forms/select-field";
 import {
   VehicleClassPicker,
   type VehicleClassOption,
@@ -36,20 +35,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "@/lib/format";
 import { trainingCreateSchema } from "@/lib/validations/operations";
 
-const STATUS_OPTIONS = [
-  { value: "PENDING", label: "Pending" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
-
-type TrainingStatus = "PENDING" | "COMPLETED" | "ABSENT" | "CANCELLED";
-
 type FormValues = {
   clientId: string;
   trainingDate: string;
   vehicleClassIds: string[];
-  status: TrainingStatus;
   notes?: string;
 };
 
@@ -59,7 +48,6 @@ type ExistingTraining = {
   clientLabel: string;
   trainingDate: Date | string;
   vehicleClassIds: string[];
-  status: TrainingStatus;
   notes: string | null;
 };
 
@@ -99,14 +87,12 @@ export function TrainingDialog({
           clientId: training.clientId,
           trainingDate: toDateInputValue(training.trainingDate),
           vehicleClassIds: training.vehicleClassIds,
-          status: training.status,
           notes: training.notes ?? "",
         }
       : {
           clientId: defaultClientId ?? "",
           trainingDate: new Date().toISOString().slice(0, 10),
           vehicleClassIds: [],
-          status: "COMPLETED",
           notes: "",
         },
   });
@@ -212,21 +198,8 @@ export function TrainingDialog({
                 {...register("trainingDate")}
               />
             </Field>
-
-            <Field label="Status" required error={errors.status?.message}>
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <SelectField
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={STATUS_OPTIONS}
-                  />
-                )}
-              />
-            </Field>
           </div>
+
 
           <Field
             label="Vehicle Classes"
@@ -250,6 +223,12 @@ export function TrainingDialog({
           <Field label="Notes" htmlFor="notes" error={errors.notes?.message}>
             <Textarea id="notes" rows={3} {...register("notes")} />
           </Field>
+          {!isEdit ? (
+            <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+              New records start as <span className="font-medium text-foreground">Pending</span>.
+              Record the outcome later with the <span className="font-medium text-foreground">Add Results</span> button.
+            </p>
+          ) : null}
         </form>
 
         <DialogFooter>

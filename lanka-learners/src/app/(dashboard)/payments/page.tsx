@@ -45,7 +45,10 @@ export default async function PaymentsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  // Started now so it runs alongside the search instead of after it.
+  const clientsPromise = getClientOptions();
   const clientId = readText(params.clientId, 40);
+  const focusedPromise = clientId ? getClientProfile(clientId) : null;
 
   const { rows, total, totalAmount, page, pageSize } = await searchPayments({
     q: readText(params.q),
@@ -56,10 +59,10 @@ export default async function PaymentsPage({
     extra: { paymentType: readEnum(params.paymentType, TYPES) },
   });
 
-  const clients = await getClientOptions();
+  const clients = await clientsPromise;
 
   // When filtered to one client, show that learner's balance alongside.
-  const focused = clientId ? await getClientProfile(clientId) : null;
+  const focused = focusedPromise ? await focusedPromise : null;
 
   return (
     <>

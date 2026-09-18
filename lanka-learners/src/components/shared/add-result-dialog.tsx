@@ -105,12 +105,7 @@ export function AddResultDialog(props: Props) {
     try {
       const result =
         props.kind === "exam"
-          ? await updateExamResultAction({
-              id: props.id,
-              // Attendance follows the result: an absent candidate is marked absent.
-              attendance: status === "ABSENT" ? "ABSENT" : "PRESENT",
-              result: status,
-            })
+          ? await updateExamResultAction({ id: props.id, result: status })
           : props.kind === "trial"
             ? await updateTrialResultAction({
                 id: props.id,

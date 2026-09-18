@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { compressImage } from "@/lib/compress-image";
 import { calculateAge } from "@/lib/format";
 import {
   clientFormSchema,
@@ -113,18 +114,22 @@ export function ClientForm({
   const profilePhoto = watch("profilePhoto");
   const age = calculateAge(dateOfBirth || null);
 
-  async function uploadPhoto(file: File) {
-    if (file.size > MAX_PROFILE_PHOTO_BYTES) {
-      toast.error("Image must be 5 MB or smaller.");
-      return;
-    }
-
-    if (!PROFILE_PHOTO_TYPES.has(file.type)) {
+  async function uploadPhoto(original: File) {
+    if (!PROFILE_PHOTO_TYPES.has(original.type)) {
       toast.error("Image must be a JPEG, PNG or WebP file.");
       return;
     }
 
     setUploading(true);
+    // Resize and re-encode in the browser before sending it anywhere.
+    const file = await compressImage(original);
+
+    if (file.size > MAX_PROFILE_PHOTO_BYTES) {
+      setUploading(false);
+      toast.error("Image must be 5 MB or smaller.");
+      return;
+    }
+
     try {
       const body = new FormData();
       body.append("file", file);

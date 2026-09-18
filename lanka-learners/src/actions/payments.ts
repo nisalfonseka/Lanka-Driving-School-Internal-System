@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/format";
@@ -13,7 +14,7 @@ import {
   paymentUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { zodFieldErrors } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /**
  * Client payments. Bill numbers are unique across the whole system, and the
@@ -78,6 +79,7 @@ export async function createPaymentAction(
     revalidatePath("/payments");
     revalidatePath("/dashboard");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: payment.id });
   });
@@ -158,6 +160,7 @@ export async function updatePaymentAction(
     revalidatePath("/payments");
     revalidatePath("/dashboard");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });

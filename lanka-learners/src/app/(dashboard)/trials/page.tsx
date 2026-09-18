@@ -45,6 +45,8 @@ export default async function TrialsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  // Started now so it runs alongside the search instead of after it.
+  const clientsPromise = getClientOptions();
 
   const { rows, total, page, pageSize } = await searchTrials({
     q: readText(params.q),
@@ -55,7 +57,7 @@ export default async function TrialsPage({
     extra: { result: readEnum(params.result, RESULTS) },
   });
 
-  const clients = await getClientOptions();
+  const clients = await clientsPromise;
 
   return (
     <>
@@ -172,8 +174,6 @@ export default async function TrialsPage({
                               clientLabel: `${trial.client.fullName} · ${trial.client.admissionNumber}`,
                               trialDate: trial.trialDate,
                               dmtBarcode: trial.dmtBarcode,
-                              result: trial.result,
-                              resultNotes: trial.resultNotes,
                             }}
                           />
                         ) : null}

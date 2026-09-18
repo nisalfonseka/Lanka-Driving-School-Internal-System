@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   Popover,
   PopoverContent,
@@ -38,11 +39,16 @@ export function ClientPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  // Filter once the user pauses typing, not on every keystroke.
+  const debouncedQuery = useDebouncedValue(query, 150);
 
-  const selected = clients.find((client) => client.id === value);
+  const selected = useMemo(
+    () => clients.find((client) => client.id === value),
+    [clients, value]
+  );
 
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = debouncedQuery.trim().toLowerCase();
     if (!needle) return clients.slice(0, 60);
     return clients
       .filter(
@@ -52,7 +58,7 @@ export function ClientPicker({
           client.idNumber.toLowerCase().includes(needle)
       )
       .slice(0, 60);
-  }, [clients, query]);
+  }, [clients, debouncedQuery]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

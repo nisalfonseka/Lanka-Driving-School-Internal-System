@@ -62,7 +62,7 @@ export async function createLectureAction(
       data: {
         clientId: data.clientId,
         attendanceDate,
-        status: data.status,
+        status: "PENDING",
         createdById: user.id,
       },
       select: { id: true },
@@ -73,8 +73,8 @@ export async function createLectureAction(
       action: "CREATE_LECTURE_ATTENDANCE",
       entityType: "LectureAttendance",
       entityId: lecture.id,
-      description: `Marked ${humanise(data.status).toLowerCase()} on ${formatDate(data.attendanceDate)} for ${client.fullName} (${client.admissionNumber})`,
-      newData: data,
+      description: `Added lecture on ${formatDate(data.attendanceDate)} for ${client.fullName} (${client.admissionNumber})`,
+      newData: { attendanceDate: data.attendanceDate, status: "PENDING" },
     });
 
     revalidatePath("/lectures");
@@ -113,7 +113,6 @@ export async function updateLectureAction(
       data: {
         clientId: data.clientId,
         attendanceDate: toUtcDateOnly(data.attendanceDate),
-        status: data.status,
         updatedById: user.id,
       },
     });
@@ -124,11 +123,8 @@ export async function updateLectureAction(
       entityType: "LectureAttendance",
       entityId: data.id,
       description: `Corrected lecture attendance for ${existing.client.fullName} (${existing.client.admissionNumber})`,
-      oldData: {
-        attendanceDate: existing.attendanceDate,
-        status: existing.status,
-      },
-      newData: { attendanceDate: data.attendanceDate, status: data.status },
+      oldData: { attendanceDate: existing.attendanceDate },
+      newData: { attendanceDate: data.attendanceDate },
     });
 
     revalidatePath("/lectures");

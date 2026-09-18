@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate, humanise } from "@/lib/format";
@@ -14,7 +15,7 @@ import {
   examUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { zodFieldErrors } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /**
  * Written exams. Employees may add attempts; only owners may correct one that
@@ -45,8 +46,7 @@ export async function createExamAction(
         clientId: data.clientId,
         examDate: toUtcDateOnly(data.examDate),
         dmtBarcode: data.dmtBarcode ?? null,
-        attendance: data.attendance,
-        result: data.result,
+        result: "PENDING",
         createdById: user.id,
       },
       select: { id: true },
@@ -58,11 +58,16 @@ export async function createExamAction(
       entityType: "WrittenExam",
       entityId: exam.id,
       description: `Added written exam on ${formatDate(data.examDate)} for ${client.fullName} (${client.admissionNumber})`,
-      newData: data,
+      newData: {
+        examDate: data.examDate,
+        dmtBarcode: data.dmtBarcode,
+        result: "PENDING",
+      },
     });
 
     revalidatePath("/exams");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: exam.id });
   });
@@ -96,8 +101,6 @@ export async function updateExamAction(
         clientId: data.clientId,
         examDate: toUtcDateOnly(data.examDate),
         dmtBarcode: data.dmtBarcode ?? null,
-        attendance: data.attendance,
-        result: data.result,
         updatedById: user.id,
       },
     });
@@ -111,19 +114,16 @@ export async function updateExamAction(
       oldData: {
         examDate: existing.examDate,
         dmtBarcode: existing.dmtBarcode,
-        attendance: existing.attendance,
-        result: existing.result,
       },
       newData: {
         examDate: data.examDate,
         dmtBarcode: data.dmtBarcode,
-        attendance: data.attendance,
-        result: data.result,
       },
     });
 
     revalidatePath("/exams");
     revalidatePath(`/clients/${data.clientId}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });
@@ -157,7 +157,6 @@ export async function updateExamResultAction(
     await prisma.writtenExam.update({
       where: { id: data.id },
       data: {
-        attendance: data.attendance,
         result: data.result,
         updatedById: user.id,
       },
@@ -169,12 +168,13 @@ export async function updateExamResultAction(
       entityType: "WrittenExam",
       entityId: data.id,
       description: `Set written exam result to ${humanise(data.result)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
-      oldData: { attendance: existing.attendance, result: existing.result },
-      newData: { attendance: data.attendance, result: data.result },
+      oldData: { result: existing.result },
+      newData: { result: data.result },
     });
 
     revalidatePath("/exams");
     revalidatePath(`/clients/${existing.client.id}`);
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });

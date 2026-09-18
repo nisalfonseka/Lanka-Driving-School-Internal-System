@@ -7,6 +7,9 @@ import {
   type Granularity,
   type ResolvedRange,
 } from "@/lib/analytics-range";
+import { unstable_cache } from "next/cache";
+
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import { toNumber } from "@/lib/format";
 
@@ -31,7 +34,28 @@ export type AnalyticsData = {
  * range. Rows are bucketed in application code after a single indexed range
  * query per dataset, which keeps the work off the database and avoids raw SQL.
  */
-export async function getAnalytics(range: ResolvedRange): Promise<AnalyticsData> {
+export function getAnalytics(range: ResolvedRange): Promise<AnalyticsData> {
+  // Dates don't survive the cache's JSON round trip, so pass ISO strings.
+  return getAnalyticsCached(range.start?.toISOString() ?? null, range.end.toISOString());
+}
+
+/**
+ * Cached per date range. Any write that changes these figures expires the
+ * "stats" tag, and the entry refreshes itself after five minutes regardless.
+ */
+const getAnalyticsCached = unstable_cache(
+  async (startIso: string | null, endIso: string) =>
+    computeAnalytics({
+      start: startIso ? new Date(startIso) : undefined,
+      end: new Date(endIso),
+    }),
+  ["analytics"],
+  { tags: [CACHE_TAGS.stats], revalidate: 300 }
+);
+
+async function computeAnalytics(
+  range: Pick<ResolvedRange, "start" | "end">
+): Promise<AnalyticsData> {
   const within = {
     ...(range.start ? { gte: range.start } : {}),
     lt: range.end,

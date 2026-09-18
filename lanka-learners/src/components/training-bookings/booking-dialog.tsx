@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -82,6 +82,15 @@ export function BookingDialog({
       contactNumber: "",
     },
   });
+
+  // Debounced: typing a date fires onChange per segment; look up once it settles.
+  const availabilityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function scheduleAvailability(date: string) {
+    if (availabilityTimer.current) clearTimeout(availabilityTimer.current);
+    availabilityTimer.current = setTimeout(() => {
+      void loadAvailability(date);
+    }, 300);
+  }
 
   const loadAvailability = useCallback(
     async (date: string) => {
@@ -200,10 +209,10 @@ export function BookingDialog({
                 id={`${uid}-date`}
                 type="date"
                 aria-invalid={Boolean(errors.bookingDate)}
-                {...register("bookingDate", {
-                  onChange: (event) =>
-                    void loadAvailability(event.target.value),
-                })}
+                {...register("bookingDate")}
+                onInput={(event) =>
+                  scheduleAvailability(event.currentTarget.value)
+                }
               />
             </Field>
 

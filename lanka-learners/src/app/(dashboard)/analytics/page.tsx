@@ -6,7 +6,7 @@ import {
   RegistrationsChart,
   ResultChart,
   VehicleClassChart,
-} from "@/components/analytics/charts";
+} from "@/components/analytics/lazy-charts";
 import { AnalyticsRangeFilter } from "@/components/analytics/range-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";

@@ -1,7 +1,9 @@
 import "server-only";
 
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { endOfUtcDay, toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { toNumber } from "@/lib/format";
@@ -9,13 +11,22 @@ import type { Prisma } from "@/generated/prisma/client";
 
 export const CLIENTS_PAGE_SIZE = 20;
 
-export const getActiveVehicleClasses = cache(async () => {
-  return prisma.vehicleClass.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: { code: "asc" },
-    select: { id: true, code: true, name: true },
-  });
-});
+/**
+ * Cached across requests — vehicle classes change rarely, and every settings
+ * action that edits them expires the tag.
+ */
+export const getActiveVehicleClasses = cache(
+  unstable_cache(
+    async () =>
+      prisma.vehicleClass.findMany({
+        where: { status: "ACTIVE" },
+        orderBy: { code: "asc" },
+        select: { id: true, code: true, name: true },
+      }),
+    ["active-vehicle-classes"],
+    { tags: [CACHE_TAGS.vehicleClasses], revalidate: 3600 }
+  )
+);
 
 export const getAllVehicleClasses = cache(async () => {
   return prisma.vehicleClass.findMany({
@@ -97,7 +108,9 @@ export async function searchClients(input: ClientSearchInput) {
 }
 
 export async function getClientProfile(clientId: string) {
-  const client = await prisma.client.findUnique({
+  // Both queries run in parallel rather than one after the other.
+  const [client, paid] = await Promise.all([
+    prisma.client.findUnique({
     where: { id: clientId },
     include: {
       vehicleClasses: { include: { vehicleClass: true } },
@@ -108,14 +121,14 @@ export async function getClientProfile(clientId: string) {
       createdBy: { select: { fullName: true } },
       updatedBy: { select: { fullName: true } },
     },
-  });
+    }),
+    prisma.clientPayment.aggregate({
+      _sum: { amount: true },
+      where: { clientId },
+    }),
+  ]);
 
   if (!client) return null;
-
-  const paid = await prisma.clientPayment.aggregate({
-    _sum: { amount: true },
-    where: { clientId },
-  });
 
   const agreedFee = toNumber(client.totalAgreedFee);
   const totalPaid = toNumber(paid._sum.amount);
@@ -132,15 +145,24 @@ export async function getClientProfile(clientId: string) {
 }
 
 /** Lightweight list for the client pickers on the operational pages. */
-export const getClientOptions = cache(async () => {
-  return prisma.client.findMany({
-    orderBy: { fullName: "asc" },
-    select: {
-      id: true,
-      fullName: true,
-      admissionNumber: true,
-      idNumber: true,
-    },
-    take: 1000,
-  });
-});
+/**
+ * Cached across requests (every list page needs it for its Add dialog);
+ * registering or editing a client expires the tag.
+ */
+export const getClientOptions = cache(
+  unstable_cache(
+    async () =>
+      prisma.client.findMany({
+        orderBy: { fullName: "asc" },
+        select: {
+          id: true,
+          fullName: true,
+          admissionNumber: true,
+          idNumber: true,
+        },
+        take: 1000,
+      }),
+    ["client-options"],
+    { tags: [CACHE_TAGS.clientOptions], revalidate: 300 }
+  )
+);

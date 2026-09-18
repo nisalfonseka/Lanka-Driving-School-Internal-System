@@ -19,7 +19,10 @@ export default async function EditClientPage({
   await requireOwnerPage();
 
   const { id } = await params;
-  const profile = await getClientProfile(id);
+  const [profile, vehicleClasses] = await Promise.all([
+    getClientProfile(id),
+    getActiveVehicleClasses(),
+  ]);
   if (!profile) notFound();
 
   const { client } = profile;
@@ -34,7 +37,7 @@ export default async function EditClientPage({
       <ClientForm
         mode="edit"
         clientId={client.id}
-        vehicleClasses={await getActiveVehicleClasses()}
+        vehicleClasses={vehicleClasses}
         defaultValues={{
           profilePhoto: client.profilePhoto ?? "",
           fullName: client.fullName,

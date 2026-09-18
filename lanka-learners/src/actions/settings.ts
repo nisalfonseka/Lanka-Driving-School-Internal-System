@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import {
   settingsSchema,
@@ -12,7 +13,7 @@ import {
   vehicleClassUpdateSchema,
 } from "@/lib/validations/admin";
 
-import { zodFieldErrors } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /** Vehicle classes and business settings — owner only. */
 
@@ -57,6 +58,7 @@ export async function createVehicleClassAction(
     });
 
     revalidatePath("/settings");
+    expireCache(CACHE_TAGS.vehicleClasses);
 
     return ok({ id: created.id });
   });
@@ -115,6 +117,7 @@ export async function updateVehicleClassAction(
     });
 
     revalidatePath("/settings");
+    expireCache(CACHE_TAGS.vehicleClasses);
 
     return ok({ id: data.id });
   });
@@ -161,6 +164,7 @@ export async function updateSettingsAction(
 
     revalidatePath("/settings");
     revalidatePath("/", "layout");
+    expireCache(CACHE_TAGS.settings);
 
     return ok(null);
   });

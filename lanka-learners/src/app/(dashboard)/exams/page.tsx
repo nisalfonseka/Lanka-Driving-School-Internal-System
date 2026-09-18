@@ -45,6 +45,8 @@ export default async function ExamsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  // Started now so it runs alongside the search instead of after it.
+  const clientsPromise = getClientOptions();
 
   const { rows, total, page, pageSize } = await searchExams({
     q: readText(params.q),
@@ -55,7 +57,7 @@ export default async function ExamsPage({
     extra: { result: readEnum(params.result, RESULTS) },
   });
 
-  const clients = await getClientOptions();
+  const clients = await clientsPromise;
 
   return (
     <>
@@ -110,7 +112,6 @@ export default async function ExamsPage({
                   <TableHead>Client</TableHead>
                   <TableHead>Admission No.</TableHead>
                   <TableHead>DMT Barcode</TableHead>
-                  <TableHead>Attendance</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Entered By</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -140,10 +141,6 @@ export default async function ExamsPage({
                     </TableCell>
 
                     <TableCell>
-                      <StatusBadge value={exam.attendance} />
-                    </TableCell>
-
-                    <TableCell>
                       <StatusBadge value={exam.result} />
                     </TableCell>
 
@@ -169,8 +166,6 @@ export default async function ExamsPage({
                               clientLabel: `${exam.client.fullName} · ${exam.client.admissionNumber}`,
                               examDate: exam.examDate,
                               dmtBarcode: exam.dmtBarcode,
-                              attendance: exam.attendance,
-                              result: exam.result,
                             }}
                           />
                         ) : null}

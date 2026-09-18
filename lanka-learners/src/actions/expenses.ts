@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatCurrency, humanise } from "@/lib/format";
@@ -13,7 +14,7 @@ import {
   expenseUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { zodFieldErrors } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /** Company expenses. Employees may record them; only owners may correct them. */
 
@@ -55,6 +56,7 @@ export async function createExpenseAction(
 
     revalidatePath("/expenses");
     revalidatePath("/dashboard");
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: expense.id });
   });
@@ -114,6 +116,7 @@ export async function updateExpenseAction(
 
     revalidatePath("/expenses");
     revalidatePath("/dashboard");
+    expireCache(CACHE_TAGS.stats);
 
     return ok({ id: data.id });
   });

@@ -112,7 +112,6 @@ export default async function ClientsPage({
                             fill
                             sizes="32px"
                             className="object-cover"
-                            unoptimized
                           />
                         ) : (
                           initials(client.fullName)

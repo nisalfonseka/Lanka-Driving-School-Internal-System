@@ -15,7 +15,6 @@ import {
 // Written exams
 // ---------------------------------------------------------------------------
 
-export const attendanceEnum = z.enum(["PRESENT", "ABSENT"]);
 export const examResultEnum = z.enum([
   "PENDING",
   "PASS",
@@ -43,43 +42,23 @@ export const trainingStatusEnum = z.enum([
   "CANCELLED",
 ]);
 
+// New records always start as Pending. The status/result is never part of the
+// add or edit forms — it only changes through "Add Results".
+
 const examShape = {
   clientId: cuidSchema,
   examDate: dateStringSchema,
   dmtBarcode: optionalText(60),
-  attendance: attendanceEnum,
-  result: examResultEnum,
 };
 
-export const examCreateSchema = z.object(examShape).refine(
-  // An absent candidate cannot have passed or failed.
-  (value) => value.attendance !== "ABSENT" || value.result === "ABSENT",
-  {
-    message: "An absent candidate must have the result 'Absent'",
-    path: ["result"],
-  }
-);
+export const examCreateSchema = z.object(examShape);
+export const examUpdateSchema = z.object({ id: cuidSchema, ...examShape });
 
-export const examUpdateSchema = z
-  .object({ id: cuidSchema, ...examShape })
-  .refine(
-    (value) => value.attendance !== "ABSENT" || value.result === "ABSENT",
-    {
-      message: "An absent candidate must have the result 'Absent'",
-      path: ["result"],
-    }
-  );
-
-/** Status-only update, allowed for every signed-in user. */
-export const examResultSchema = z
-  .object({ id: cuidSchema, attendance: attendanceEnum, result: examResultEnum })
-  .refine(
-    (value) => value.attendance !== "ABSENT" || value.result === "ABSENT",
-    {
-      message: "An absent candidate must have the result 'Absent'",
-      path: ["result"],
-    }
-  );
+/** Result-only update, allowed for every signed-in user. */
+export const examResultSchema = z.object({
+  id: cuidSchema,
+  result: examResultEnum,
+});
 
 export type ExamCreateInput = z.infer<typeof examCreateSchema>;
 export type ExamUpdateInput = z.infer<typeof examUpdateSchema>;
@@ -92,8 +71,6 @@ const trialShape = {
   clientId: cuidSchema,
   trialDate: dateStringSchema,
   dmtBarcode: optionalText(60),
-  result: trialResultEnum,
-  resultNotes: optionalText(500),
 };
 
 export const trialCreateSchema = z.object(trialShape);
@@ -115,7 +92,6 @@ export type TrialUpdateInput = z.infer<typeof trialUpdateSchema>;
 const lectureShape = {
   clientId: cuidSchema,
   attendanceDate: dateStringSchema,
-  status: lectureStatusEnum,
 };
 
 export const lectureCreateSchema = z.object(lectureShape);
@@ -140,7 +116,6 @@ const trainingShape = {
   clientId: cuidSchema,
   trainingDate: dateStringSchema,
   vehicleClassIds: vehicleClassIdsSchema,
-  status: trainingStatusEnum,
   notes: optionalText(500),
 };
 
