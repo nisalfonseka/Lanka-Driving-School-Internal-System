@@ -95,6 +95,7 @@ export async function createClientAction(
               : null,
             schoolCertificateNumber: data.schoolCertificateNumber ?? null,
             dmtBarcodeNumber: data.dmtBarcodeNumber ?? null,
+            learnerPermitNumber: data.learnerPermitNumber ?? null,
             learnerPermitIssueDate: data.learnerPermitIssueDate
               ? toUtcDateOnly(data.learnerPermitIssueDate)
               : null,
@@ -218,6 +219,7 @@ export async function updateClientAction(
             : null,
           schoolCertificateNumber: data.schoolCertificateNumber ?? null,
           dmtBarcodeNumber: data.dmtBarcodeNumber ?? null,
+          learnerPermitNumber: data.learnerPermitNumber ?? null,
           learnerPermitIssueDate: data.learnerPermitIssueDate
             ? toUtcDateOnly(data.learnerPermitIssueDate)
             : null,
@@ -229,6 +231,7 @@ export async function updateClientAction(
             : null,
           schoolCertificateNumber: data.schoolCertificateNumber ?? null,
           dmtBarcodeNumber: data.dmtBarcodeNumber ?? null,
+          learnerPermitNumber: data.learnerPermitNumber ?? null,
           learnerPermitIssueDate: data.learnerPermitIssueDate
             ? toUtcDateOnly(data.learnerPermitIssueDate)
             : null,

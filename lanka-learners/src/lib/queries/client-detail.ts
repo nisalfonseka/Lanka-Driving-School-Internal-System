@@ -34,7 +34,10 @@ export async function getClientRecords(clientId: string) {
         where: { clientId },
         orderBy: { attendanceDate: "desc" },
         take: RECORD_LIMIT,
-        include: { createdBy: { select: { fullName: true } } },
+        include: {
+          createdBy: { select: { fullName: true } },
+          updatedBy: { select: { fullName: true } },
+        },
       }),
       prisma.practicalTraining.findMany({
         where: { clientId },
@@ -42,6 +45,7 @@ export async function getClientRecords(clientId: string) {
         take: RECORD_LIMIT,
         include: {
           createdBy: { select: { fullName: true } },
+          updatedBy: { select: { fullName: true } },
           vehicleClasses: { include: { vehicleClass: true } },
         },
       }),
@@ -59,15 +63,6 @@ export async function getClientRecords(clientId: string) {
       }),
     ]);
 
-  // Training days counted per vehicle class — a single day covering B and
-  // B AUTO counts once for each.
-  const trainingDaysByClass = new Map<string, number>();
-  for (const training of trainings) {
-    for (const link of training.vehicleClasses) {
-      const code = link.vehicleClass.code;
-      trainingDaysByClass.set(code, (trainingDaysByClass.get(code) ?? 0) + 1);
-    }
-  }
 
   return {
     exams,
@@ -77,10 +72,8 @@ export async function getClientRecords(clientId: string) {
     payments,
     history,
     trainingSummary: {
-      totalDays: trainings.length,
-      byClass: [...trainingDaysByClass.entries()]
-        .map(([code, days]) => ({ code, days }))
-        .sort((a, b) => b.days - a.days),
+      completedDays: trainings.filter((row) => row.status === "COMPLETED")
+        .length,
     },
     lectureSummary: {
       total: lectures.length,

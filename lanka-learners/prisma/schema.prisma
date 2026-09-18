@@ -28,7 +28,6 @@ enum UserStatus {
 enum ClientStatus {
   ACTIVE
   COMPLETED
-  INACTIVE
 }
 
 /// Training background of the learner at registration time.
@@ -52,6 +51,7 @@ enum ExamResult {
   FAIL
   ABSENT
   PENDING
+  CANCELLED
 }
 
 enum TrialResult {
@@ -59,6 +59,21 @@ enum TrialResult {
   FAIL
   ABSENT
   PENDING
+  CANCELLED
+}
+
+enum LectureStatus {
+  PENDING
+  PRESENT
+  ABSENT
+  CANCELLED
+}
+
+enum TrainingStatus {
+  PENDING
+  COMPLETED
+  ABSENT
+  CANCELLED
 }
 
 enum PaymentType {
@@ -71,13 +86,10 @@ enum PaymentType {
 enum ExpenseCategory {
   OFFICE_ACCESSORIES
   VEHICLE_REPAIRS
-  FUEL
-  OTHER
-}
-
-enum FuelSubCategory {
+  VEHICLE_SERVICES
   PETROL
   DIESEL
+  OTHER
 }
 
 enum AuditAction {
@@ -87,12 +99,16 @@ enum AuditAction {
   UPDATE_CLIENT
   CREATE_EXAM
   UPDATE_EXAM
+  UPDATE_EXAM_RESULT
   CREATE_TRIAL
   UPDATE_TRIAL
+  UPDATE_TRIAL_RESULT
   CREATE_LECTURE_ATTENDANCE
   UPDATE_LECTURE_ATTENDANCE
+  UPDATE_LECTURE_RESULT
   CREATE_PRACTICAL_TRAINING
   UPDATE_PRACTICAL_TRAINING
+  UPDATE_TRAINING_RESULT
   CREATE_PAYMENT
   UPDATE_PAYMENT
   CREATE_EXPENSE
@@ -246,6 +262,7 @@ model ClientDocument {
   medicalIssueDate        DateTime?
   schoolCertificateNumber String?
   dmtBarcodeNumber        String?
+  learnerPermitNumber     String?
   learnerPermitIssueDate  DateTime?
 
   createdAt DateTime @default(now())
@@ -348,7 +365,7 @@ model LectureAttendance {
   clientId String
 
   attendanceDate DateTime
-  status         AttendanceStatus @default(PRESENT)
+  status         LectureStatus @default(PRESENT)
 
   createdById String?
   updatedById String?
@@ -372,6 +389,7 @@ model PracticalTraining {
   clientId String
 
   trainingDate DateTime
+  status       TrainingStatus @default(COMPLETED)
   notes        String?
 
   createdById String?
@@ -438,7 +456,6 @@ model CompanyExpense {
 
   expenseDate DateTime
   category    ExpenseCategory
-  subCategory FuelSubCategory?
   amount      Decimal          @db.Decimal(12, 2)
   description String?
 

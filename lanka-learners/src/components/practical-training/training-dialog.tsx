@@ -16,6 +16,7 @@ import {
   type ClientOption,
 } from "@/components/forms/client-picker";
 import { Field } from "@/components/forms/field";
+import { SelectField } from "@/components/forms/select-field";
 import {
   VehicleClassPicker,
   type VehicleClassOption,
@@ -35,10 +36,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "@/lib/format";
 import { trainingCreateSchema } from "@/lib/validations/operations";
 
+const STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pending" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "ABSENT", label: "Absent" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+type TrainingStatus = "PENDING" | "COMPLETED" | "ABSENT" | "CANCELLED";
+
 type FormValues = {
   clientId: string;
   trainingDate: string;
   vehicleClassIds: string[];
+  status: TrainingStatus;
   notes?: string;
 };
 
@@ -48,6 +59,7 @@ type ExistingTraining = {
   clientLabel: string;
   trainingDate: Date | string;
   vehicleClassIds: string[];
+  status: TrainingStatus;
   notes: string | null;
 };
 
@@ -56,15 +68,22 @@ export function TrainingDialog({
   vehicleClasses,
   training,
   defaultClientId,
+  fixedClientLabel,
+  compact,
 }: {
   clients?: ClientOption[];
   vehicleClasses: VehicleClassOption[];
   training?: ExistingTraining;
   defaultClientId?: string;
+  /** Locks the client (e.g. when opened from a client profile). */
+  fixedClientLabel?: string;
+  /** Smaller trigger button for use inside cards. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(training);
+  const lockedClientLabel = training?.clientLabel ?? fixedClientLabel;
 
   const {
     register,
@@ -80,12 +99,14 @@ export function TrainingDialog({
           clientId: training.clientId,
           trainingDate: toDateInputValue(training.trainingDate),
           vehicleClassIds: training.vehicleClassIds,
+          status: training.status,
           notes: training.notes ?? "",
         }
       : {
           clientId: defaultClientId ?? "",
           trainingDate: new Date().toISOString().slice(0, 10),
           vehicleClassIds: [],
+          status: "COMPLETED",
           notes: "",
         },
   });
@@ -130,8 +151,8 @@ export function TrainingDialog({
               Edit
             </Button>
           ) : (
-            <Button>
-              <PlusIcon className="size-4" />
+            <Button size={compact ? "xs" : "default"}>
+              <PlusIcon className={compact ? "size-3" : "size-4"} />
               Add Training
             </Button>
           )
@@ -155,9 +176,9 @@ export function TrainingDialog({
           noValidate
         >
           <Field label="Client" required error={errors.clientId?.message}>
-            {isEdit ? (
+            {lockedClientLabel ? (
               <Input
-                value={training!.clientLabel}
+                value={lockedClientLabel}
                 readOnly
                 className="bg-muted"
               />
@@ -177,20 +198,35 @@ export function TrainingDialog({
             )}
           </Field>
 
-          <Field
-            label="Training Date"
-            htmlFor="trainingDate"
-            required
-            error={errors.trainingDate?.message}
-            className="max-w-xs"
-          >
-            <Input
-              id="trainingDate"
-              type="date"
-              aria-invalid={Boolean(errors.trainingDate)}
-              {...register("trainingDate")}
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Training Date"
+              htmlFor="trainingDate"
+              required
+              error={errors.trainingDate?.message}
+            >
+              <Input
+                id="trainingDate"
+                type="date"
+                aria-invalid={Boolean(errors.trainingDate)}
+                {...register("trainingDate")}
+              />
+            </Field>
+
+            <Field label="Status" required error={errors.status?.message}>
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <SelectField
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    options={STATUS_OPTIONS}
+                  />
+                )}
+              />
+            </Field>
+          </div>
 
           <Field
             label="Vehicle Classes"

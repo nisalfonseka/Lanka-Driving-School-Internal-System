@@ -61,14 +61,21 @@ export function PaymentDialog({
   clients,
   payment,
   defaultClientId,
+  fixedClientLabel,
+  compact,
 }: {
   clients?: ClientOption[];
   payment?: ExistingPayment;
   defaultClientId?: string;
+  /** Locks the client (e.g. when opened from a client profile). */
+  fixedClientLabel?: string;
+  /** Smaller trigger button for use inside cards. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(payment);
+  const lockedClientLabel = payment?.clientLabel ?? fixedClientLabel;
 
   const {
     register,
@@ -138,8 +145,8 @@ export function PaymentDialog({
               Edit
             </Button>
           ) : (
-            <Button>
-              <PlusIcon className="size-4" />
+            <Button size={compact ? "xs" : "default"}>
+              <PlusIcon className={compact ? "size-3" : "size-4"} />
               Add Payment
             </Button>
           )
@@ -165,9 +172,9 @@ export function PaymentDialog({
           noValidate
         >
           <Field label="Client" required error={errors.clientId?.message}>
-            {isEdit ? (
+            {lockedClientLabel ? (
               <Input
-                value={payment!.clientLabel}
+                value={lockedClientLabel}
                 readOnly
                 className="bg-muted"
               />

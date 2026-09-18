@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TrainingDialog } from "@/components/practical-training/training-dialog";
+import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { RecordFilters } from "@/components/shared/record-filters";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,11 +27,14 @@ import { searchTrainings } from "@/lib/queries/operations";
 import {
   flattenSearchParams,
   readDate,
+  readEnum,
   readPage,
   readText,
 } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Practical Training" };
+
+const STATUSES = ["PENDING", "COMPLETED", "ABSENT", "CANCELLED"] as const;
 
 export default async function PracticalTrainingPage({
   searchParams,
@@ -37,7 +42,7 @@ export default async function PracticalTrainingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
-  // Employees get a read-only list; only owners may correct existing records.
+  // Everyone can add results; only owners may correct a whole record.
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
@@ -50,13 +55,13 @@ export default async function PracticalTrainingPage({
     ? params.vehicleClassId
     : undefined;
 
-  const { rows, total, page, pageSize, summary } = await searchTrainings({
+  const { rows, total, page, pageSize } = await searchTrainings({
     q: readText(params.q),
     clientId: readText(params.clientId, 40),
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
-    extra: { vehicleClassId },
+    extra: { vehicleClassId, status: readEnum(params.status, STATUSES) },
   });
 
   const clients = await getClientOptions();
@@ -74,35 +79,6 @@ export default async function PracticalTrainingPage({
           />
         }
       />
-
-      {/* Totals reflect the whole filtered set, not just this page. */}
-      <Card className="mb-4">
-        <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
-          <div>
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Total Training Days
-            </p>
-            <p className="tabular mt-0.5 text-2xl font-semibold">
-              {summary.totalDays}
-            </p>
-          </div>
-
-          {summary.byClass.length > 0 ? (
-            <div className="min-w-0">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Days by Vehicle Class
-              </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {summary.byClass.map((row) => (
-                  <Badge key={row.code} variant="secondary">
-                    {row.code}: {row.days}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
 
       <Card className="overflow-hidden p-0">
         <RecordFilters
@@ -128,6 +104,18 @@ export default async function PracticalTrainingPage({
                 })),
               ],
             },
+            {
+              key: "status",
+              label: "Status",
+              type: "select",
+              options: [
+                { value: "", label: "All statuses" },
+                { value: "PENDING", label: "Pending" },
+                { value: "COMPLETED", label: "Completed" },
+                { value: "ABSENT", label: "Absent" },
+                { value: "CANCELLED", label: "Cancelled" },
+              ],
+            },
           ]}
         />
 
@@ -146,11 +134,10 @@ export default async function PracticalTrainingPage({
                   <TableHead>Client</TableHead>
                   <TableHead>Admission No.</TableHead>
                   <TableHead>Vehicle Classes</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Entered By</TableHead>
-                  {canEdit ? (
-                    <TableHead className="text-right">Action</TableHead>
-                  ) : null}
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -182,6 +169,10 @@ export default async function PracticalTrainingPage({
                       </div>
                     </TableCell>
 
+                    <TableCell>
+                      <StatusBadge value={training.status} />
+                    </TableCell>
+
                     <TableCell className="max-w-40 truncate text-muted-foreground">
                       {training.notes ?? "—"}
                     </TableCell>
@@ -192,23 +183,35 @@ export default async function PracticalTrainingPage({
                         "—"}
                     </TableCell>
 
-                    {canEdit ? (
-                      <TableCell className="text-right">
-                        <TrainingDialog
-                          vehicleClasses={vehicleClasses}
-                          training={{
-                            id: training.id,
-                            clientId: training.client.id,
-                            clientLabel: `${training.client.fullName} · ${training.client.admissionNumber}`,
-                            trainingDate: training.trainingDate,
-                            vehicleClassIds: training.vehicleClasses.map(
-                              (link) => link.vehicleClassId
-                            ),
-                            notes: training.notes,
-                          }}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <AddResultDialog
+                          kind="training"
+                          id={training.id}
+                          clientName={training.client.fullName}
+                          date={training.trainingDate}
+                          status={training.status}
+                          notes={training.notes}
                         />
-                      </TableCell>
-                    ) : null}
+                        {/* Only owners may correct the full record. */}
+                        {canEdit ? (
+                          <TrainingDialog
+                            vehicleClasses={vehicleClasses}
+                            training={{
+                              id: training.id,
+                              clientId: training.client.id,
+                              clientLabel: `${training.client.fullName} · ${training.client.admissionNumber}`,
+                              trainingDate: training.trainingDate,
+                              vehicleClassIds: training.vehicleClasses.map(
+                                (link) => link.vehicleClassId
+                              ),
+                              status: training.status,
+                              notes: training.notes,
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

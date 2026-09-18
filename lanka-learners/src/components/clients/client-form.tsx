@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderIcon, UploadIcon, UserIcon, XIcon } from "lucide-react";
+import { LoaderIcon, UserIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import {
   updateClientAction,
   uploadClientPhotoAction,
 } from "@/actions/clients";
+import { PhotoPickerDialog } from "@/components/clients/photo-picker-dialog";
 import { DateOfBirthField } from "@/components/forms/date-of-birth-field";
 import { Field, FormSection } from "@/components/forms/field";
 import { SelectField } from "@/components/forms/select-field";
@@ -42,7 +43,6 @@ const SCHEDULE_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
   { value: "COMPLETED", label: "Completed" },
-  { value: "INACTIVE", label: "Inactive" },
 ];
 
 const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -64,7 +64,6 @@ export function ClientForm({
   defaultValues?: Partial<ClientFormInput>;
 }) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -89,6 +88,7 @@ export function ClientForm({
       medicalIssueDate: "",
       schoolCertificateNumber: "",
       dmtBarcodeNumber: "",
+      learnerPermitNumber: "",
       learnerPermitIssueDate: "",
       hasPreviousLicense: false,
       previousLicenseNumber: "",
@@ -113,19 +113,14 @@ export function ClientForm({
   const profilePhoto = watch("profilePhoto");
   const age = calculateAge(dateOfBirth || null);
 
-  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  async function uploadPhoto(file: File) {
     if (file.size > MAX_PROFILE_PHOTO_BYTES) {
       toast.error("Image must be 5 MB or smaller.");
-      event.target.value = "";
       return;
     }
 
     if (!PROFILE_PHOTO_TYPES.has(file.type)) {
       toast.error("Image must be a JPEG, PNG or WebP file.");
-      event.target.value = "";
       return;
     }
 
@@ -143,7 +138,6 @@ export function ClientForm({
       toast.success("Photo uploaded");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -233,20 +227,11 @@ export function ClientForm({
                 </p>
 
                 <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="xs"
+                  <PhotoPickerDialog
+                    hasPhoto={Boolean(profilePhoto)}
                     disabled={uploading}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {uploading ? (
-                      <LoaderIcon className="size-3 animate-spin" />
-                    ) : (
-                      <UploadIcon className="size-3" />
-                    )}
-                    {uploading ? "Uploading…" : "Photo"}
-                  </Button>
+                    onSelect={(file) => void uploadPhoto(file)}
+                  />
 
                   {profilePhoto ? (
                     <Button
@@ -263,13 +248,6 @@ export function ClientForm({
                   ) : null}
                 </div>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handlePhotoChange}
-                />
               </div>
 
               <div className="grid flex-1 gap-4 sm:grid-cols-2">
@@ -564,6 +542,17 @@ export function ClientForm({
                 <Input
                   id="dmtBarcodeNumber"
                   {...register("dmtBarcodeNumber")}
+                />
+              </Field>
+
+              <Field
+                label="Learner Permit Number"
+                htmlFor="learnerPermitNumber"
+                error={errors.learnerPermitNumber?.message}
+              >
+                <Input
+                  id="learnerPermitNumber"
+                  {...register("learnerPermitNumber")}
                 />
               </Field>
 

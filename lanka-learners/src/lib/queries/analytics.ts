@@ -1,12 +1,17 @@
 import "server-only";
 
-import { lastMonths, monthKey, monthsAgo } from "@/lib/dates";
+import {
+  bucketKey,
+  buildBuckets,
+  sriLankaToday,
+  type Granularity,
+  type ResolvedRange,
+} from "@/lib/analytics-range";
 import { prisma } from "@/lib/db";
 import { toNumber } from "@/lib/format";
 
-const MONTHS = 12;
-
 export type AnalyticsData = {
+  granularity: Granularity;
   registrations: { month: string; clients: number }[];
   finance: { month: string; revenue: number; expenses: number }[];
   expenseCategories: { category: string; amount: number }[];
@@ -17,17 +22,20 @@ export type AnalyticsData = {
     revenue: number;
     expenses: number;
     net: number;
+    newClients: number;
   };
 };
 
 /**
- * Every figure here comes from the database. Rows are bucketed by month in
- * application code after a single indexed range query per dataset, which keeps
- * the work off the database and avoids raw SQL.
+ * Every figure here comes from the database and is limited to the selected
+ * range. Rows are bucketed in application code after a single indexed range
+ * query per dataset, which keeps the work off the database and avoids raw SQL.
  */
-export async function getAnalytics(): Promise<AnalyticsData> {
-  const since = monthsAgo(MONTHS - 1);
-  const buckets = lastMonths(MONTHS);
+export async function getAnalytics(range: ResolvedRange): Promise<AnalyticsData> {
+  const within = {
+    ...(range.start ? { gte: range.start } : {}),
+    lt: range.end,
+  };
 
   const [
     clients,
@@ -37,37 +45,59 @@ export async function getAnalytics(): Promise<AnalyticsData> {
     examGroups,
     trialGroups,
     vehicleClassLinks,
-    revenueTotal,
-    expenseTotal,
   ] = await Promise.all([
     prisma.client.findMany({
-      where: { registeredDate: { gte: since } },
+      where: { registeredDate: within },
       select: { registeredDate: true },
     }),
     prisma.clientPayment.findMany({
-      where: { paymentDate: { gte: since } },
+      where: { paymentDate: within },
       select: { paymentDate: true, amount: true },
     }),
     prisma.companyExpense.findMany({
-      where: { expenseDate: { gte: since } },
+      where: { expenseDate: within },
       select: { expenseDate: true, amount: true },
     }),
     prisma.companyExpense.groupBy({
       by: ["category"],
+      where: { expenseDate: within },
       _sum: { amount: true },
     }),
-    prisma.writtenExam.groupBy({ by: ["result"], _count: { _all: true } }),
-    prisma.trialExam.groupBy({ by: ["result"], _count: { _all: true } }),
+    prisma.writtenExam.groupBy({
+      by: ["result"],
+      where: { examDate: within },
+      _count: { _all: true },
+    }),
+    prisma.trialExam.groupBy({
+      by: ["result"],
+      where: { trialDate: within },
+      _count: { _all: true },
+    }),
     prisma.clientVehicleClass.findMany({
+      where: { client: { registeredDate: within } },
       select: { vehicleClass: { select: { code: true } } },
     }),
-    prisma.clientPayment.aggregate({ _sum: { amount: true } }),
-    prisma.companyExpense.aggregate({ _sum: { amount: true } }),
   ]);
+
+  // Lifetime starts at the earliest record actually present.
+  let chartStart = range.start;
+  if (!chartStart) {
+    const dates = [
+      ...clients.map((row) => row.registeredDate),
+      ...payments.map((row) => row.paymentDate),
+      ...expenses.map((row) => row.expenseDate),
+    ];
+    chartStart = dates.length
+      ? new Date(Math.min(...dates.map((date) => date.getTime())))
+      : sriLankaToday();
+  }
+
+  const { granularity, buckets } = buildBuckets(chartStart, range.end);
+  const keyOf = (date: Date) => bucketKey(date, granularity);
 
   const registrationCounts = new Map(buckets.map((b) => [b.key, 0]));
   for (const client of clients) {
-    const key = monthKey(client.registeredDate);
+    const key = keyOf(client.registeredDate);
     if (registrationCounts.has(key)) {
       registrationCounts.set(key, (registrationCounts.get(key) ?? 0) + 1);
     }
@@ -75,7 +105,7 @@ export async function getAnalytics(): Promise<AnalyticsData> {
 
   const revenueByMonth = new Map(buckets.map((b) => [b.key, 0]));
   for (const payment of payments) {
-    const key = monthKey(payment.paymentDate);
+    const key = keyOf(payment.paymentDate);
     if (revenueByMonth.has(key)) {
       revenueByMonth.set(
         key,
@@ -86,7 +116,7 @@ export async function getAnalytics(): Promise<AnalyticsData> {
 
   const expensesByMonth = new Map(buckets.map((b) => [b.key, 0]));
   for (const expense of expenses) {
-    const key = monthKey(expense.expenseDate);
+    const key = keyOf(expense.expenseDate);
     if (expensesByMonth.has(key)) {
       expensesByMonth.set(
         key,
@@ -101,10 +131,14 @@ export async function getAnalytics(): Promise<AnalyticsData> {
     vehicleCounts.set(code, (vehicleCounts.get(code) ?? 0) + 1);
   }
 
-  const revenue = toNumber(revenueTotal._sum.amount);
-  const expenseSum = toNumber(expenseTotal._sum.amount);
+  const revenue = payments.reduce((sum, row) => sum + toNumber(row.amount), 0);
+  const expenseSum = expenses.reduce(
+    (sum, row) => sum + toNumber(row.amount),
+    0
+  );
 
   return {
+    granularity,
     registrations: buckets.map((bucket) => ({
       month: bucket.label,
       clients: registrationCounts.get(bucket.key) ?? 0,
@@ -135,6 +169,7 @@ export async function getAnalytics(): Promise<AnalyticsData> {
       revenue,
       expenses: expenseSum,
       net: revenue - expenseSum,
+      newClients: clients.length,
     },
   };
 }

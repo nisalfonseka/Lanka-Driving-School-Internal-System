@@ -30,16 +30,13 @@ import type { z } from "zod";
 const CATEGORY_OPTIONS = [
   { value: "OFFICE_ACCESSORIES", label: "Office Accessories" },
   { value: "VEHICLE_REPAIRS", label: "Vehicle Repairs" },
-  { value: "FUEL", label: "Fuel" },
+  { value: "VEHICLE_SERVICES", label: "Vehicle Services" },
+  { value: "PETROL", label: "Petrol" },
+  { value: "DIESEL", label: "Diesel" },
   { value: "OTHER", label: "Other" },
 ];
 
-const FUEL_OPTIONS = [
-  { value: "PETROL", label: "Petrol" },
-  { value: "DIESEL", label: "Diesel" },
-];
-
-type Category = "OFFICE_ACCESSORIES" | "VEHICLE_REPAIRS" | "FUEL" | "OTHER";
+type Category = FormValues["category"];
 
 /** Derived from the schema — `amount` is coerced, so input != output. */
 type FormInput = z.input<typeof expenseCreateSchema>;
@@ -49,7 +46,6 @@ type ExistingExpense = {
   id: string;
   expenseDate: Date | string;
   category: Category;
-  subCategory: "PETROL" | "DIESEL" | null;
   amount: number;
   description: string | null;
 };
@@ -64,8 +60,6 @@ export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
     control,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormValues>({
@@ -74,20 +68,16 @@ export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
       ? {
           expenseDate: toDateInputValue(expense.expenseDate),
           category: expense.category,
-          subCategory: expense.subCategory ?? undefined,
           amount: expense.amount,
           description: expense.description ?? "",
         }
       : {
           expenseDate: new Date().toISOString().slice(0, 10),
           category: "OFFICE_ACCESSORIES",
-          subCategory: undefined,
           amount: undefined,
           description: "",
         },
   });
-
-  const category = watch("category");
 
   async function onSubmit(values: FormValues) {
     const result = isEdit
@@ -194,40 +184,12 @@ export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
                 render={({ field }) => (
                   <SelectField
                     value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      // A subcategory only applies to fuel.
-                      if (value !== "FUEL") {
-                        setValue("subCategory", undefined);
-                      }
-                    }}
+                    onValueChange={field.onChange}
                     options={CATEGORY_OPTIONS}
                   />
                 )}
               />
             </Field>
-
-            {category === "FUEL" ? (
-              <Field
-                label="Fuel Type"
-                required
-                error={errors.subCategory?.message}
-              >
-                <Controller
-                  control={control}
-                  name="subCategory"
-                  render={({ field }) => (
-                    <SelectField
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      options={FUEL_OPTIONS}
-                      placeholder="Select fuel type…"
-                      invalid={Boolean(errors.subCategory)}
-                    />
-                  )}
-                />
-              </Field>
-            ) : null}
           </div>
 
           <Field

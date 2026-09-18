@@ -34,13 +34,14 @@ const RESULT_OPTIONS = [
   { value: "PASS", label: "Pass" },
   { value: "FAIL", label: "Fail" },
   { value: "ABSENT", label: "Absent" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 type FormValues = {
   clientId: string;
   trialDate: string;
   dmtBarcode?: string;
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING";
+  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
   resultNotes?: string;
 };
 
@@ -50,7 +51,7 @@ type ExistingTrial = {
   clientLabel: string;
   trialDate: Date | string;
   dmtBarcode: string | null;
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING";
+  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
   resultNotes: string | null;
 };
 
@@ -58,14 +59,21 @@ export function TrialDialog({
   clients,
   trial,
   defaultClientId,
+  fixedClientLabel,
+  compact,
 }: {
   clients?: ClientOption[];
   trial?: ExistingTrial;
   defaultClientId?: string;
+  /** Locks the client (e.g. when opened from a client profile). */
+  fixedClientLabel?: string;
+  /** Smaller trigger button for use inside cards. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(trial);
+  const lockedClientLabel = trial?.clientLabel ?? fixedClientLabel;
 
   const {
     register,
@@ -133,8 +141,8 @@ export function TrialDialog({
               Edit
             </Button>
           ) : (
-            <Button>
-              <PlusIcon className="size-4" />
+            <Button size={compact ? "xs" : "default"}>
+              <PlusIcon className={compact ? "size-3" : "size-4"} />
               Add Trial
             </Button>
           )
@@ -160,8 +168,8 @@ export function TrialDialog({
           noValidate
         >
           <Field label="Client" required error={errors.clientId?.message}>
-            {isEdit ? (
-              <Input value={trial!.clientLabel} readOnly className="bg-muted" />
+            {lockedClientLabel ? (
+              <Input value={lockedClientLabel} readOnly className="bg-muted" />
             ) : (
               <Controller
                 control={control}
@@ -193,13 +201,16 @@ export function TrialDialog({
               />
             </Field>
 
-            <Field
-              label="DMT Barcode"
-              htmlFor="dmtBarcode"
-              error={errors.dmtBarcode?.message}
-            >
-              <Input id="dmtBarcode" {...register("dmtBarcode")} />
-            </Field>
+            {/* The DMT barcode is only kept for corrections to older records. */}
+            {isEdit ? (
+              <Field
+                label="DMT Barcode"
+                htmlFor="dmtBarcode"
+                error={errors.dmtBarcode?.message}
+              >
+                <Input id="dmtBarcode" {...register("dmtBarcode")} />
+              </Field>
+            ) : null}
 
             <Field label="Result" required error={errors.result?.message}>
               <Controller

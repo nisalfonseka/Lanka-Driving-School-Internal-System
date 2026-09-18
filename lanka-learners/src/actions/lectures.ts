@@ -7,9 +7,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatDate, humanise } from "@/lib/format";
 import {
   lectureCreateSchema,
+  lectureResultSchema,
   lectureUpdateSchema,
 } from "@/lib/validations/operations";
 
@@ -72,7 +73,7 @@ export async function createLectureAction(
       action: "CREATE_LECTURE_ATTENDANCE",
       entityType: "LectureAttendance",
       entityId: lecture.id,
-      description: `Marked ${data.status.toLowerCase()} on ${formatDate(data.attendanceDate)} for ${client.fullName} (${client.admissionNumber})`,
+      description: `Marked ${humanise(data.status).toLowerCase()} on ${formatDate(data.attendanceDate)} for ${client.fullName} (${client.admissionNumber})`,
       newData: data,
     });
 
@@ -132,6 +133,53 @@ export async function updateLectureAction(
 
     revalidatePath("/lectures");
     revalidatePath(`/clients/${data.clientId}`);
+
+    return ok({ id: data.id });
+  });
+}
+
+/** Records the lecture outcome (present, absent, cancelled). Any signed-in user may do this. */
+export async function updateLectureResultAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireUserAction();
+
+    const parsed = lectureResultSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail(
+        "Please correct the highlighted fields.",
+        zodFieldErrors(parsed.error)
+      );
+    }
+
+    const data = parsed.data;
+
+    const existing = await prisma.lectureAttendance.findUnique({
+      where: { id: data.id },
+      include: {
+        client: { select: { id: true, fullName: true, admissionNumber: true } },
+      },
+    });
+    if (!existing) return fail("That attendance record no longer exists.");
+
+    await prisma.lectureAttendance.update({
+      where: { id: data.id },
+      data: { status: data.status, updatedById: user.id },
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_LECTURE_RESULT",
+      entityType: "LectureAttendance",
+      entityId: data.id,
+      description: `Set lecture on ${formatDate(existing.attendanceDate)} to ${humanise(data.status)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      oldData: { status: existing.status },
+      newData: { status: data.status },
+    });
+
+    revalidatePath("/lectures");
+    revalidatePath(`/clients/${existing.client.id}`);
 
     return ok({ id: data.id });
   });

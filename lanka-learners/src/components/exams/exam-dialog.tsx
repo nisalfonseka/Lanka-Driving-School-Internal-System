@@ -35,6 +35,7 @@ const RESULT_OPTIONS = [
   { value: "PASS", label: "Pass" },
   { value: "FAIL", label: "Fail" },
   { value: "ABSENT", label: "Absent" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 type FormValues = {
@@ -42,7 +43,7 @@ type FormValues = {
   examDate: string;
   dmtBarcode?: string;
   attendance: "PRESENT" | "ABSENT";
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING";
+  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
 };
 
 type ExistingExam = {
@@ -52,22 +53,29 @@ type ExistingExam = {
   examDate: Date | string;
   dmtBarcode: string | null;
   attendance: "PRESENT" | "ABSENT";
-  result: "PASS" | "FAIL" | "ABSENT" | "PENDING";
+  result: "PASS" | "FAIL" | "ABSENT" | "PENDING" | "CANCELLED";
 };
 
 export function ExamDialog({
   clients,
   exam,
   defaultClientId,
+  fixedClientLabel,
+  compact,
 }: {
   clients?: ClientOption[];
   /** Present for edit mode. Only owners are given this. */
   exam?: ExistingExam;
   defaultClientId?: string;
+  /** Locks the client (e.g. when opened from a client profile). */
+  fixedClientLabel?: string;
+  /** Smaller trigger button for use inside cards. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(exam);
+  const lockedClientLabel = exam?.clientLabel ?? fixedClientLabel;
 
   const {
     register,
@@ -135,8 +143,8 @@ export function ExamDialog({
               Edit
             </Button>
           ) : (
-            <Button>
-              <PlusIcon className="size-4" />
+            <Button size={compact ? "xs" : "default"}>
+              <PlusIcon className={compact ? "size-3" : "size-4"} />
               Add Exam
             </Button>
           )
@@ -162,9 +170,9 @@ export function ExamDialog({
           noValidate
         >
           <Field label="Client" required error={errors.clientId?.message}>
-            {isEdit ? (
+            {lockedClientLabel ? (
               // The client is fixed on a correction — only the exam data changes.
-              <Input value={exam!.clientLabel} readOnly className="bg-muted" />
+              <Input value={lockedClientLabel} readOnly className="bg-muted" />
             ) : (
               <Controller
                 control={control}
@@ -196,13 +204,16 @@ export function ExamDialog({
               />
             </Field>
 
-            <Field
-              label="DMT Barcode"
-              htmlFor="dmtBarcode"
-              error={errors.dmtBarcode?.message}
-            >
-              <Input id="dmtBarcode" {...register("dmtBarcode")} />
-            </Field>
+            {/* The DMT barcode is only kept for corrections to older records. */}
+            {isEdit ? (
+              <Field
+                label="DMT Barcode"
+                htmlFor="dmtBarcode"
+                error={errors.dmtBarcode?.message}
+              >
+                <Input id="dmtBarcode" {...register("dmtBarcode")} />
+              </Field>
+            ) : null}
 
             <Field label="Attendance" required error={errors.attendance?.message}>
               <Controller

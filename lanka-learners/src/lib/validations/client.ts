@@ -13,7 +13,7 @@ import {
   vehicleClassIdsSchema,
 } from "./common";
 
-export const clientStatusEnum = z.enum(["ACTIVE", "COMPLETED", "INACTIVE"]);
+export const clientStatusEnum = z.enum(["ACTIVE", "COMPLETED"]);
 export const scheduleTypeEnum = z.enum(["BEGINNER", "TRAINED"]);
 
 const MIN_AGE = 15;
@@ -52,6 +52,7 @@ export const clientFormSchema = z
     medicalIssueDate: optionalDateStringSchema,
     schoolCertificateNumber: optionalText(60),
     dmtBarcodeNumber: optionalText(60),
+    learnerPermitNumber: optionalText(60),
     learnerPermitIssueDate: optionalDateStringSchema,
 
     // Previous licence

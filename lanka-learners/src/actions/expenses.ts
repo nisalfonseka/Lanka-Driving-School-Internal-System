@@ -37,8 +37,6 @@ export async function createExpenseAction(
       data: {
         expenseDate: toUtcDateOnly(data.expenseDate),
         category: data.category,
-        // A subcategory only applies to fuel.
-        subCategory: data.category === "FUEL" ? (data.subCategory ?? null) : null,
         amount: data.amount,
         description: data.description ?? null,
         createdById: user.id,
@@ -88,7 +86,6 @@ export async function updateExpenseAction(
       data: {
         expenseDate: toUtcDateOnly(data.expenseDate),
         category: data.category,
-        subCategory: data.category === "FUEL" ? (data.subCategory ?? null) : null,
         amount: data.amount,
         description: data.description ?? null,
         updatedById: user.id,
@@ -104,14 +101,12 @@ export async function updateExpenseAction(
       oldData: {
         expenseDate: existing.expenseDate,
         category: existing.category,
-        subCategory: existing.subCategory,
         amount: existing.amount,
         description: existing.description,
       },
       newData: {
         expenseDate: data.expenseDate,
         category: data.category,
-        subCategory: data.subCategory,
         amount: data.amount,
         description: data.description,
       },

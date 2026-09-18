@@ -66,14 +66,11 @@ const getDashboardStatsCached = unstable_cache(
         _sum: { amount: true },
         where: { expenseDate: { gte: monthStart, lt: monthEnd } },
       }),
-      // Cancelled learners are excluded from what the school still expects to collect.
       prisma.client.aggregate({
         _sum: { totalAgreedFee: true },
-        where: { status: { not: "INACTIVE" } },
       }),
       prisma.clientPayment.aggregate({
         _sum: { amount: true },
-        where: { client: { status: { not: "INACTIVE" } } },
       }),
       prisma.client.count({
         where: { registeredDate: { gte: todayStart, lt: tomorrowStart } },

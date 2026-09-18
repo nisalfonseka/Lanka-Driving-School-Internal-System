@@ -117,7 +117,7 @@ export async function searchLectures(input: RecordFilterInput) {
     ...(input.extra?.status
       ? {
           status: input.extra
-            .status as Prisma.EnumAttendanceStatusFilter["equals"],
+            .status as Prisma.EnumLectureStatusFilter["equals"],
         }
       : {}),
   };
@@ -155,9 +155,15 @@ export async function searchTrainings(input: RecordFilterInput) {
     ...(vehicleClassId
       ? { vehicleClasses: { some: { vehicleClassId } } }
       : {}),
+    ...(input.extra?.status
+      ? {
+          status: input.extra
+            .status as Prisma.EnumTrainingStatusFilter["equals"],
+        }
+      : {}),
   };
 
-  const [rows, total, matchingClasses] = await Promise.all([
+  const [rows, total] = await Promise.all([
     prisma.practicalTraining.findMany({
       where,
       orderBy: { trainingDate: "desc" },
@@ -170,30 +176,13 @@ export async function searchTrainings(input: RecordFilterInput) {
       },
     }),
     prisma.practicalTraining.count({ where }),
-    // Totals cover the whole filtered set, not just the current page.
-    prisma.practicalTrainingClass.findMany({
-      where: { training: where },
-      select: { vehicleClass: { select: { code: true } } },
-    }),
   ]);
-
-  const byClass = new Map<string, number>();
-  for (const link of matchingClasses) {
-    const code = link.vehicleClass.code;
-    byClass.set(code, (byClass.get(code) ?? 0) + 1);
-  }
 
   return {
     rows,
     total,
     page: Math.max(1, input.page),
     pageSize: RECORDS_PAGE_SIZE,
-    summary: {
-      totalDays: total,
-      byClass: [...byClass.entries()]
-        .map(([code, days]) => ({ code, days }))
-        .sort((a, b) => b.days - a.days),
-    },
   };
 }
 

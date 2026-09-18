@@ -35,6 +35,7 @@ const RESULT_COLORS: Record<string, string> = {
   FAIL: "var(--destructive)",
   ABSENT: "var(--chart-2)",
   PENDING: "var(--chart-1)",
+  CANCELLED: "var(--muted-foreground)",
 };
 
 const axisProps = {

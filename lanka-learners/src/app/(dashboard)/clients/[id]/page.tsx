@@ -1,9 +1,7 @@
 import {
-  BanknoteIcon,
   CarIcon,
   ClipboardListIcon,
   PencilIcon,
-  PlusIcon,
   UserIcon,
   WalletIcon,
 } from "lucide-react";
@@ -12,9 +10,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ExamDialog } from "@/components/exams/exam-dialog";
+import { LectureDialog } from "@/components/lectures/lecture-dialog";
+import { PaymentDialog } from "@/components/payments/payment-dialog";
+import { TrainingDialog } from "@/components/practical-training/training-dialog";
+import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { DetailList } from "@/components/shared/detail-list";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { TrialDialog } from "@/components/trials/trial-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,7 +42,10 @@ import {
   initials,
 } from "@/lib/format";
 import { getClientRecords } from "@/lib/queries/client-detail";
-import { getClientProfile } from "@/lib/queries/clients";
+import {
+  getActiveVehicleClasses,
+  getClientProfile,
+} from "@/lib/queries/clients";
 
 export const metadata: Metadata = { title: "Client Profile" };
 
@@ -54,7 +61,12 @@ export default async function ClientProfilePage({
   if (!profile) notFound();
 
   const { client, finance } = profile;
-  const records = await getClientRecords(id);
+  const [records, vehicleClasses] = await Promise.all([
+    getClientRecords(id),
+    getActiveVehicleClasses(),
+  ]);
+  // Add dialogs opened from the profile are locked to this client.
+  const clientLabel = `${client.fullName} · ${client.admissionNumber}`;
   // Employees get a read-only list; only owners may correct existing records.
   const canEdit = canEditRecords(user.role);
   const paymentProgress =
@@ -114,7 +126,7 @@ export default async function ClientProfilePage({
               </div>
               <div className="px-3 py-3 sm:px-5">
                 <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Training</p>
-                <p className="mt-1 text-lg font-semibold tabular">{records.trainingSummary.totalDays}</p>
+                <p className="mt-1 text-lg font-semibold tabular">{records.trainingSummary.completedDays}</p>
               </div>
             </div>
 
@@ -253,10 +265,13 @@ export default async function ClientProfilePage({
                     </div>
                   </dl>
 
-                  <Button size="sm" className="mt-5 w-full" render={<Link href={`/payments?clientId=${client.id}`} />}>
-                    <BanknoteIcon className="size-4" />
-                    Add payment
-                  </Button>
+                  <div className="mt-5 flex justify-end">
+                    <PaymentDialog
+                      defaultClientId={client.id}
+                      fixedClientLabel={clientLabel}
+                      compact
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -310,6 +325,10 @@ export default async function ClientProfilePage({
                   {
                     label: "DMT Barcode Number",
                     value: client.document?.dmtBarcodeNumber ?? "—",
+                  },
+                  {
+                    label: "Learner Permit Number",
+                    value: client.document?.learnerPermitNumber ?? "—",
                   },
                   {
                     label: "Learner Permit Issue Date",
@@ -382,13 +401,11 @@ export default async function ClientProfilePage({
           <Card className="overflow-hidden p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="text-sm font-semibold">Written Exams</h2>
-              <Button
-                size="xs"
-                render={<Link href={`/exams?clientId=${client.id}`} />}
-              >
-                <PlusIcon className="size-3" />
-                Add Exam
-              </Button>
+              <ExamDialog
+                defaultClientId={client.id}
+                fixedClientLabel={clientLabel}
+                compact
+              />
             </div>
 
             {records.exams.length === 0 ? (
@@ -406,6 +423,7 @@ export default async function ClientProfilePage({
                       <TableHead>Attendance</TableHead>
                       <TableHead>Result</TableHead>
                       <TableHead>Entered By</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -422,7 +440,16 @@ export default async function ClientProfilePage({
                           <StatusBadge value={exam.result} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {exam.createdBy?.fullName ?? "—"}
+                          {exam.updatedBy?.fullName ?? exam.createdBy?.fullName ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AddResultDialog
+                            kind="exam"
+                            id={exam.id}
+                            clientName={client.fullName}
+                            date={exam.examDate}
+                            status={exam.result}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -438,13 +465,11 @@ export default async function ClientProfilePage({
           <Card className="overflow-hidden p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="text-sm font-semibold">Practical Trials</h2>
-              <Button
-                size="xs"
-                render={<Link href={`/trials?clientId=${client.id}`} />}
-              >
-                <PlusIcon className="size-3" />
-                Add Trial
-              </Button>
+              <TrialDialog
+                defaultClientId={client.id}
+                fixedClientLabel={clientLabel}
+                compact
+              />
             </div>
 
             {records.trials.length === 0 ? (
@@ -459,6 +484,7 @@ export default async function ClientProfilePage({
                       <TableHead>Result</TableHead>
                       <TableHead>Notes</TableHead>
                       <TableHead>Entered By</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -475,7 +501,17 @@ export default async function ClientProfilePage({
                           {trial.resultNotes ?? "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {trial.createdBy?.fullName ?? "—"}
+                          {trial.updatedBy?.fullName ?? trial.createdBy?.fullName ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AddResultDialog
+                            kind="trial"
+                            id={trial.id}
+                            clientName={client.fullName}
+                            date={trial.trialDate}
+                            status={trial.result}
+                            notes={trial.resultNotes}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -497,13 +533,11 @@ export default async function ClientProfilePage({
                   {records.lectureSummary.total} recorded
                 </p>
               </div>
-              <Button
-                size="xs"
-                render={<Link href={`/lectures?clientId=${client.id}`} />}
-              >
-                <PlusIcon className="size-3" />
-                Add Attendance
-              </Button>
+              <LectureDialog
+                defaultClientId={client.id}
+                fixedClientLabel={clientLabel}
+                compact
+              />
             </div>
 
             {records.lectures.length === 0 ? (
@@ -516,6 +550,7 @@ export default async function ClientProfilePage({
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Entered By</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -528,7 +563,16 @@ export default async function ClientProfilePage({
                           <StatusBadge value={lecture.status} />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {lecture.createdBy?.fullName ?? "—"}
+                          {lecture.updatedBy?.fullName ?? lecture.createdBy?.fullName ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AddResultDialog
+                            kind="lecture"
+                            id={lecture.id}
+                            clientName={client.fullName}
+                            date={lecture.attendanceDate}
+                            status={lecture.status}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -540,41 +584,16 @@ export default async function ClientProfilePage({
         </TabsContent>
 
         {/* --------------------------------- Practical training ------- */}
-        <TabsContent value="training" className="mt-4 space-y-4">
-          <Card>
-            <CardContent className="p-4 md:p-6">
-              <h2 className="mb-3 text-sm font-semibold">Training Summary</h2>
-              <p className="text-sm">
-                Total Training Days:{" "}
-                <span className="tabular font-semibold">
-                  {records.trainingSummary.totalDays}
-                </span>
-              </p>
-
-              {records.trainingSummary.byClass.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {records.trainingSummary.byClass.map((row) => (
-                    <Badge key={row.code} variant="secondary">
-                      {row.code}: {row.days}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
+        <TabsContent value="training" className="mt-4">
           <Card className="overflow-hidden p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h2 className="text-sm font-semibold">Training Records</h2>
-              <Button
-                size="xs"
-                render={
-                  <Link href={`/practical-training?clientId=${client.id}`} />
-                }
-              >
-                <PlusIcon className="size-3" />
-                Add Training
-              </Button>
+              <TrainingDialog
+                vehicleClasses={vehicleClasses}
+                defaultClientId={client.id}
+                fixedClientLabel={clientLabel}
+                compact
+              />
             </div>
 
             {records.trainings.length === 0 ? (
@@ -586,8 +605,10 @@ export default async function ClientProfilePage({
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Vehicle Classes</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Notes</TableHead>
                       <TableHead>Entered By</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -605,11 +626,24 @@ export default async function ClientProfilePage({
                             ))}
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <StatusBadge value={training.status} />
+                        </TableCell>
                         <TableCell className="max-w-xs truncate text-muted-foreground">
                           {training.notes ?? "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {training.createdBy?.fullName ?? "—"}
+                          {training.updatedBy?.fullName ?? training.createdBy?.fullName ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <AddResultDialog
+                            kind="training"
+                            id={training.id}
+                            clientName={client.fullName}
+                            date={training.trainingDate}
+                            status={training.status}
+                            notes={training.notes}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -632,13 +666,11 @@ export default async function ClientProfilePage({
                   {formatCurrency(finance.remaining)}
                 </p>
               </div>
-              <Button
-                size="xs"
-                render={<Link href={`/payments?clientId=${client.id}`} />}
-              >
-                <PlusIcon className="size-3" />
-                Add Payment
-              </Button>
+              <PaymentDialog
+                defaultClientId={client.id}
+                fixedClientLabel={clientLabel}
+                compact
+              />
             </div>
 
             {records.payments.length === 0 ? (

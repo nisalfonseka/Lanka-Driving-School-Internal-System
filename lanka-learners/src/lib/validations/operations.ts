@@ -14,8 +14,32 @@ import {
 // ---------------------------------------------------------------------------
 
 export const attendanceEnum = z.enum(["PRESENT", "ABSENT"]);
-export const examResultEnum = z.enum(["PASS", "FAIL", "ABSENT", "PENDING"]);
-export const trialResultEnum = z.enum(["PASS", "FAIL", "ABSENT", "PENDING"]);
+export const examResultEnum = z.enum([
+  "PENDING",
+  "PASS",
+  "FAIL",
+  "ABSENT",
+  "CANCELLED",
+]);
+export const trialResultEnum = z.enum([
+  "PENDING",
+  "PASS",
+  "FAIL",
+  "ABSENT",
+  "CANCELLED",
+]);
+export const lectureStatusEnum = z.enum([
+  "PENDING",
+  "PRESENT",
+  "ABSENT",
+  "CANCELLED",
+]);
+export const trainingStatusEnum = z.enum([
+  "PENDING",
+  "COMPLETED",
+  "ABSENT",
+  "CANCELLED",
+]);
 
 const examShape = {
   clientId: cuidSchema,
@@ -44,6 +68,17 @@ export const examUpdateSchema = z
     }
   );
 
+/** Status-only update, allowed for every signed-in user. */
+export const examResultSchema = z
+  .object({ id: cuidSchema, attendance: attendanceEnum, result: examResultEnum })
+  .refine(
+    (value) => value.attendance !== "ABSENT" || value.result === "ABSENT",
+    {
+      message: "An absent candidate must have the result 'Absent'",
+      path: ["result"],
+    }
+  );
+
 export type ExamCreateInput = z.infer<typeof examCreateSchema>;
 export type ExamUpdateInput = z.infer<typeof examUpdateSchema>;
 
@@ -62,6 +97,12 @@ const trialShape = {
 export const trialCreateSchema = z.object(trialShape);
 export const trialUpdateSchema = z.object({ id: cuidSchema, ...trialShape });
 
+export const trialResultSchema = z.object({
+  id: cuidSchema,
+  result: trialResultEnum,
+  resultNotes: optionalText(500),
+});
+
 export type TrialCreateInput = z.infer<typeof trialCreateSchema>;
 export type TrialUpdateInput = z.infer<typeof trialUpdateSchema>;
 
@@ -72,13 +113,18 @@ export type TrialUpdateInput = z.infer<typeof trialUpdateSchema>;
 const lectureShape = {
   clientId: cuidSchema,
   attendanceDate: dateStringSchema,
-  status: attendanceEnum,
+  status: lectureStatusEnum,
 };
 
 export const lectureCreateSchema = z.object(lectureShape);
 export const lectureUpdateSchema = z.object({
   id: cuidSchema,
   ...lectureShape,
+});
+
+export const lectureResultSchema = z.object({
+  id: cuidSchema,
+  status: lectureStatusEnum,
 });
 
 export type LectureCreateInput = z.infer<typeof lectureCreateSchema>;
@@ -92,6 +138,7 @@ const trainingShape = {
   clientId: cuidSchema,
   trainingDate: dateStringSchema,
   vehicleClassIds: vehicleClassIdsSchema,
+  status: trainingStatusEnum,
   notes: optionalText(500),
 };
 
@@ -99,6 +146,12 @@ export const trainingCreateSchema = z.object(trainingShape);
 export const trainingUpdateSchema = z.object({
   id: cuidSchema,
   ...trainingShape,
+});
+
+export const trainingResultSchema = z.object({
+  id: cuidSchema,
+  status: trainingStatusEnum,
+  notes: optionalText(500),
 });
 
 export type TrainingCreateInput = z.infer<typeof trainingCreateSchema>;
@@ -149,37 +202,21 @@ export type PaymentUpdateInput = z.infer<typeof paymentUpdateSchema>;
 export const expenseCategoryEnum = z.enum([
   "OFFICE_ACCESSORIES",
   "VEHICLE_REPAIRS",
-  "FUEL",
+  "VEHICLE_SERVICES",
+  "PETROL",
+  "DIESEL",
   "OTHER",
 ]);
-export const fuelSubCategoryEnum = z.enum(["PETROL", "DIESEL"]);
 
 const expenseShape = {
   expenseDate: dateStringSchema,
   category: expenseCategoryEnum,
-  subCategory: fuelSubCategoryEnum.optional(),
   amount: amountSchema,
   description: optionalText(300),
 };
 
-const fuelNeedsSubCategory = (value: {
-  category: string;
-  subCategory?: string;
-}) => value.category !== "FUEL" || Boolean(value.subCategory);
-
-export const expenseCreateSchema = z
-  .object(expenseShape)
-  .refine(fuelNeedsSubCategory, {
-    message: "Select petrol or diesel for a fuel expense",
-    path: ["subCategory"],
-  });
-
-export const expenseUpdateSchema = z
-  .object({ id: cuidSchema, ...expenseShape })
-  .refine(fuelNeedsSubCategory, {
-    message: "Select petrol or diesel for a fuel expense",
-    path: ["subCategory"],
-  });
+export const expenseCreateSchema = z.object(expenseShape);
+export const expenseUpdateSchema = z.object({ id: cuidSchema, ...expenseShape });
 
 export type ExpenseCreateInput = z.infer<typeof expenseCreateSchema>;
 export type ExpenseUpdateInput = z.infer<typeof expenseUpdateSchema>;

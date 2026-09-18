@@ -7,9 +7,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatDate, humanise } from "@/lib/format";
 import {
   trainingCreateSchema,
+  trainingResultSchema,
   trainingUpdateSchema,
 } from "@/lib/validations/operations";
 
@@ -58,6 +59,7 @@ export async function createTrainingAction(
       data: {
         clientId: data.clientId,
         trainingDate: toUtcDateOnly(data.trainingDate),
+        status: data.status,
         notes: data.notes ?? null,
         createdById: user.id,
         vehicleClasses: {
@@ -82,7 +84,12 @@ export async function createTrainingAction(
       entityType: "PracticalTraining",
       entityId: training.id,
       description: `Added practical training on ${formatDate(data.trainingDate)} (${codes}) for ${client.fullName} (${client.admissionNumber})`,
-      newData: { ...data, vehicleClasses: codes },
+      newData: {
+        trainingDate: data.trainingDate,
+        status: data.status,
+        notes: data.notes,
+        vehicleClasses: codes,
+      },
     });
 
     revalidatePath("/practical-training");
@@ -127,6 +134,7 @@ export async function updateTrainingAction(
         data: {
           clientId: data.clientId,
           trainingDate: toUtcDateOnly(data.trainingDate),
+          status: data.status,
           notes: data.notes ?? null,
           updatedById: user.id,
         },
@@ -151,6 +159,7 @@ export async function updateTrainingAction(
       description: `Corrected practical training for ${existing.client.fullName} (${existing.client.admissionNumber})`,
       oldData: {
         trainingDate: existing.trainingDate,
+        status: existing.status,
         notes: existing.notes,
         vehicleClasses: existing.vehicleClasses
           .map((link) => link.vehicleClass.code)
@@ -158,13 +167,64 @@ export async function updateTrainingAction(
       },
       newData: {
         trainingDate: data.trainingDate,
+        status: data.status,
         notes: data.notes,
-        vehicleClassIds: data.vehicleClassIds,
       },
     });
 
     revalidatePath("/practical-training");
     revalidatePath(`/clients/${data.clientId}`);
+
+    return ok({ id: data.id });
+  });
+}
+
+/** Records the outcome of a training session. Any signed-in user may do this. */
+export async function updateTrainingResultAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireUserAction();
+
+    const parsed = trainingResultSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail(
+        "Please correct the highlighted fields.",
+        zodFieldErrors(parsed.error)
+      );
+    }
+
+    const data = parsed.data;
+
+    const existing = await prisma.practicalTraining.findUnique({
+      where: { id: data.id },
+      include: {
+        client: { select: { id: true, fullName: true, admissionNumber: true } },
+      },
+    });
+    if (!existing) return fail("That training record no longer exists.");
+
+    await prisma.practicalTraining.update({
+      where: { id: data.id },
+      data: {
+        status: data.status,
+        notes: data.notes ?? null,
+        updatedById: user.id,
+      },
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_TRAINING_RESULT",
+      entityType: "PracticalTraining",
+      entityId: data.id,
+      description: `Set practical training on ${formatDate(existing.trainingDate)} to ${humanise(data.status)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      oldData: { status: existing.status, notes: existing.notes },
+      newData: { status: data.status, notes: data.notes },
+    });
+
+    revalidatePath("/practical-training");
+    revalidatePath(`/clients/${existing.client.id}`);
 
     return ok({ id: data.id });
   });

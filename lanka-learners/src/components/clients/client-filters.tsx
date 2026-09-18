@@ -13,7 +13,6 @@ const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
   { value: "ACTIVE", label: "Active" },
   { value: "COMPLETED", label: "Completed" },
-  { value: "INACTIVE", label: "Inactive" },
 ];
 
 /**

@@ -2,6 +2,7 @@ import { CarIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
@@ -32,7 +33,7 @@ import {
 
 export const metadata: Metadata = { title: "Practical Trials" };
 
-const RESULTS = ["PASS", "FAIL", "ABSENT", "PENDING"] as const;
+const RESULTS = ["PASS", "FAIL", "ABSENT", "PENDING", "CANCELLED"] as const;
 
 export default async function TrialsPage({
   searchParams,
@@ -40,7 +41,7 @@ export default async function TrialsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
-  // Employees get a read-only list; only owners may correct existing records.
+  // Everyone can add results; only owners may correct a whole record.
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
@@ -88,6 +89,7 @@ export default async function TrialsPage({
                 { value: "PASS", label: "Pass" },
                 { value: "FAIL", label: "Fail" },
                 { value: "ABSENT", label: "Absent" },
+                { value: "CANCELLED", label: "Cancelled" },
               ],
             },
           ]}
@@ -111,9 +113,7 @@ export default async function TrialsPage({
                   <TableHead>Result</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Entered By</TableHead>
-                  {canEdit ? (
-                    <TableHead className="text-right">Action</TableHead>
-                  ) : null}
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -153,21 +153,32 @@ export default async function TrialsPage({
                         "—"}
                     </TableCell>
 
-                    {canEdit ? (
-                      <TableCell className="text-right">
-                        <TrialDialog
-                          trial={{
-                            id: trial.id,
-                            clientId: trial.client.id,
-                            clientLabel: `${trial.client.fullName} · ${trial.client.admissionNumber}`,
-                            trialDate: trial.trialDate,
-                            dmtBarcode: trial.dmtBarcode,
-                            result: trial.result,
-                            resultNotes: trial.resultNotes,
-                          }}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <AddResultDialog
+                          kind="trial"
+                          id={trial.id}
+                          clientName={trial.client.fullName}
+                          date={trial.trialDate}
+                          status={trial.result}
+                          notes={trial.resultNotes}
                         />
-                      </TableCell>
-                    ) : null}
+                        {/* Only owners may correct the full record. */}
+                        {canEdit ? (
+                          <TrialDialog
+                            trial={{
+                              id: trial.id,
+                              clientId: trial.client.id,
+                              clientLabel: `${trial.client.fullName} · ${trial.client.admissionNumber}`,
+                              trialDate: trial.trialDate,
+                              dmtBarcode: trial.dmtBarcode,
+                              result: trial.result,
+                              resultNotes: trial.resultNotes,
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

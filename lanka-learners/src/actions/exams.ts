@@ -7,8 +7,12 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
-import { examCreateSchema, examUpdateSchema } from "@/lib/validations/operations";
+import { formatDate, humanise } from "@/lib/format";
+import {
+  examCreateSchema,
+  examResultSchema,
+  examUpdateSchema,
+} from "@/lib/validations/operations";
 
 import { zodFieldErrors } from "./_shared";
 
@@ -120,6 +124,57 @@ export async function updateExamAction(
 
     revalidatePath("/exams");
     revalidatePath(`/clients/${data.clientId}`);
+
+    return ok({ id: data.id });
+  });
+}
+
+/**
+ * Records the outcome of an exam. Any signed-in user may do this — it only
+ * touches attendance and result, never the date or client.
+ */
+export async function updateExamResultAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireUserAction();
+
+    const parsed = examResultSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail("Please correct the highlighted fields.", zodFieldErrors(parsed.error));
+    }
+
+    const data = parsed.data;
+
+    const existing = await prisma.writtenExam.findUnique({
+      where: { id: data.id },
+      include: {
+        client: { select: { id: true, fullName: true, admissionNumber: true } },
+      },
+    });
+    if (!existing) return fail("That exam record no longer exists.");
+
+    await prisma.writtenExam.update({
+      where: { id: data.id },
+      data: {
+        attendance: data.attendance,
+        result: data.result,
+        updatedById: user.id,
+      },
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_EXAM_RESULT",
+      entityType: "WrittenExam",
+      entityId: data.id,
+      description: `Set written exam result to ${humanise(data.result)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      oldData: { attendance: existing.attendance, result: existing.result },
+      newData: { attendance: data.attendance, result: data.result },
+    });
+
+    revalidatePath("/exams");
+    revalidatePath(`/clients/${existing.client.id}`);
 
     return ok({ id: data.id });
   });

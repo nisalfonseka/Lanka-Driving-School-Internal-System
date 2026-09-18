@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ExamDialog } from "@/components/exams/exam-dialog";
+import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
@@ -32,7 +33,7 @@ import {
 
 export const metadata: Metadata = { title: "Written Exams" };
 
-const RESULTS = ["PASS", "FAIL", "ABSENT", "PENDING"] as const;
+const RESULTS = ["PASS", "FAIL", "ABSENT", "PENDING", "CANCELLED"] as const;
 
 export default async function ExamsPage({
   searchParams,
@@ -40,7 +41,7 @@ export default async function ExamsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
-  // Employees get a read-only list; only owners may correct existing records.
+  // Everyone can add results; only owners may correct a whole record.
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
@@ -88,6 +89,7 @@ export default async function ExamsPage({
                 { value: "PASS", label: "Pass" },
                 { value: "FAIL", label: "Fail" },
                 { value: "ABSENT", label: "Absent" },
+                { value: "CANCELLED", label: "Cancelled" },
               ],
             },
           ]}
@@ -111,9 +113,7 @@ export default async function ExamsPage({
                   <TableHead>Attendance</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Entered By</TableHead>
-                  {canEdit ? (
-                    <TableHead className="text-right">Action</TableHead>
-                  ) : null}
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -151,22 +151,31 @@ export default async function ExamsPage({
                       {exam.updatedBy?.fullName ?? exam.createdBy?.fullName ?? "—"}
                     </TableCell>
 
-                    {/* Employees see a read-only list; only owners can correct. */}
-                    {canEdit ? (
-                      <TableCell className="text-right">
-                        <ExamDialog
-                          exam={{
-                            id: exam.id,
-                            clientId: exam.client.id,
-                            clientLabel: `${exam.client.fullName} · ${exam.client.admissionNumber}`,
-                            examDate: exam.examDate,
-                            dmtBarcode: exam.dmtBarcode,
-                            attendance: exam.attendance,
-                            result: exam.result,
-                          }}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <AddResultDialog
+                          kind="exam"
+                          id={exam.id}
+                          clientName={exam.client.fullName}
+                          date={exam.examDate}
+                          status={exam.result}
                         />
-                      </TableCell>
-                    ) : null}
+                        {/* Only owners may correct the full record. */}
+                        {canEdit ? (
+                          <ExamDialog
+                            exam={{
+                              id: exam.id,
+                              clientId: exam.client.id,
+                              clientLabel: `${exam.client.fullName} · ${exam.client.admissionNumber}`,
+                              examDate: exam.examDate,
+                              dmtBarcode: exam.dmtBarcode,
+                              attendance: exam.attendance,
+                              result: exam.result,
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

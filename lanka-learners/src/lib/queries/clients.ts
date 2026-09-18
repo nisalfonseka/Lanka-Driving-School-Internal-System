@@ -29,7 +29,7 @@ export type ClientSearchInput = {
   admissionNumber?: string;
   from?: string;
   to?: string;
-  status?: "ACTIVE" | "COMPLETED" | "INACTIVE";
+  status?: "ACTIVE" | "COMPLETED";
   page: number;
 };
 
@@ -134,7 +134,6 @@ export async function getClientProfile(clientId: string) {
 /** Lightweight list for the client pickers on the operational pages. */
 export const getClientOptions = cache(async () => {
   return prisma.client.findMany({
-    where: { status: { not: "INACTIVE" } },
     orderBy: { fullName: "asc" },
     select: {
       id: true,

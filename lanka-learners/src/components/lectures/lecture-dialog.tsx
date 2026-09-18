@@ -29,14 +29,16 @@ import { toDateInputValue } from "@/lib/format";
 import { lectureCreateSchema } from "@/lib/validations/operations";
 
 const STATUS_OPTIONS = [
+  { value: "PENDING", label: "Pending" },
   { value: "PRESENT", label: "Present" },
   { value: "ABSENT", label: "Absent" },
+  { value: "CANCELLED", label: "Cancelled" },
 ];
 
 type FormValues = {
   clientId: string;
   attendanceDate: string;
-  status: "PRESENT" | "ABSENT";
+  status: "PENDING" | "PRESENT" | "ABSENT" | "CANCELLED";
 };
 
 type ExistingLecture = {
@@ -44,21 +46,28 @@ type ExistingLecture = {
   clientId: string;
   clientLabel: string;
   attendanceDate: Date | string;
-  status: "PRESENT" | "ABSENT";
+  status: "PENDING" | "PRESENT" | "ABSENT" | "CANCELLED";
 };
 
 export function LectureDialog({
   clients,
   lecture,
   defaultClientId,
+  fixedClientLabel,
+  compact,
 }: {
   clients?: ClientOption[];
   lecture?: ExistingLecture;
   defaultClientId?: string;
+  /** Locks the client (e.g. when opened from a client profile). */
+  fixedClientLabel?: string;
+  /** Smaller trigger button for use inside cards. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(lecture);
+  const lockedClientLabel = lecture?.clientLabel ?? fixedClientLabel;
 
   const {
     register,
@@ -122,8 +131,8 @@ export function LectureDialog({
               Edit
             </Button>
           ) : (
-            <Button>
-              <PlusIcon className="size-4" />
+            <Button size={compact ? "xs" : "default"}>
+              <PlusIcon className={compact ? "size-3" : "size-4"} />
               Record Attendance
             </Button>
           )
@@ -147,9 +156,9 @@ export function LectureDialog({
           noValidate
         >
           <Field label="Client" required error={errors.clientId?.message}>
-            {isEdit ? (
+            {lockedClientLabel ? (
               <Input
-                value={lecture!.clientLabel}
+                value={lockedClientLabel}
                 readOnly
                 className="bg-muted"
               />

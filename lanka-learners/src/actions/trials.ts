@@ -7,9 +7,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate } from "@/lib/format";
+import { formatDate, humanise } from "@/lib/format";
 import {
   trialCreateSchema,
+  trialResultSchema,
   trialUpdateSchema,
 } from "@/lib/validations/operations";
 
@@ -125,6 +126,57 @@ export async function updateTrialAction(
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${data.clientId}`);
+
+    return ok({ id: data.id });
+  });
+}
+
+/** Records a trial outcome. Any signed-in user may do this. */
+export async function updateTrialResultAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireUserAction();
+
+    const parsed = trialResultSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail(
+        "Please correct the highlighted fields.",
+        zodFieldErrors(parsed.error)
+      );
+    }
+
+    const data = parsed.data;
+
+    const existing = await prisma.trialExam.findUnique({
+      where: { id: data.id },
+      include: {
+        client: { select: { id: true, fullName: true, admissionNumber: true } },
+      },
+    });
+    if (!existing) return fail("That trial record no longer exists.");
+
+    await prisma.trialExam.update({
+      where: { id: data.id },
+      data: {
+        result: data.result,
+        resultNotes: data.resultNotes ?? null,
+        updatedById: user.id,
+      },
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_TRIAL_RESULT",
+      entityType: "TrialExam",
+      entityId: data.id,
+      description: `Set practical trial result to ${humanise(data.result)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      oldData: { result: existing.result, resultNotes: existing.resultNotes },
+      newData: { result: data.result, resultNotes: data.resultNotes },
+    });
+
+    revalidatePath("/trials");
+    revalidatePath(`/clients/${existing.client.id}`);
 
     return ok({ id: data.id });
   });

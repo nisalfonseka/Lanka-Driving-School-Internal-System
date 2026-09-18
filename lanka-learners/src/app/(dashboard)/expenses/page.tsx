@@ -34,7 +34,9 @@ export const metadata: Metadata = { title: "Expenses" };
 const CATEGORIES = [
   "OFFICE_ACCESSORIES",
   "VEHICLE_REPAIRS",
-  "FUEL",
+  "VEHICLE_SERVICES",
+  "PETROL",
+  "DIESEL",
   "OTHER",
 ] as const;
 
@@ -94,7 +96,9 @@ export default async function ExpensesPage({
                 { value: "", label: "All categories" },
                 { value: "OFFICE_ACCESSORIES", label: "Office Accessories" },
                 { value: "VEHICLE_REPAIRS", label: "Vehicle Repairs" },
-                { value: "FUEL", label: "Fuel" },
+                { value: "VEHICLE_SERVICES", label: "Vehicle Services" },
+                { value: "PETROL", label: "Petrol" },
+                { value: "DIESEL", label: "Diesel" },
                 { value: "OTHER", label: "Other" },
               ],
             },
@@ -114,7 +118,6 @@ export default async function ExpensesPage({
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead>Sub Category</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Entered By</TableHead>
@@ -133,12 +136,6 @@ export default async function ExpensesPage({
                       <Badge variant="outline">
                         {humanise(expense.category)}
                       </Badge>
-                    </TableCell>
-
-                    <TableCell className="text-muted-foreground">
-                      {expense.subCategory
-                        ? humanise(expense.subCategory)
-                        : "—"}
                     </TableCell>
 
                     <TableCell className="max-w-60 truncate text-muted-foreground">
@@ -162,7 +159,6 @@ export default async function ExpensesPage({
                             id: expense.id,
                             expenseDate: expense.expenseDate,
                             category: expense.category,
-                            subCategory: expense.subCategory,
                             amount: toNumber(expense.amount),
                             description: expense.description,
                           }}

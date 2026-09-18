@@ -57,6 +57,7 @@ export default async function EditClientPage({
           schoolCertificateNumber:
             client.document?.schoolCertificateNumber ?? "",
           dmtBarcodeNumber: client.document?.dmtBarcodeNumber ?? "",
+          learnerPermitNumber: client.document?.learnerPermitNumber ?? "",
           learnerPermitIssueDate: toDateInputValue(
             client.document?.learnerPermitIssueDate
           ),

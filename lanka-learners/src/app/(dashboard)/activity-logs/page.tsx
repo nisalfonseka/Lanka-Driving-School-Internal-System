@@ -19,7 +19,8 @@ import {
 import { requireOwnerPage } from "@/lib/auth/session";
 import { endOfUtcDay, toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate, formatTime, humanise } from "@/lib/format";
+import { describeAction, describeEntity } from "@/lib/audit-format";
+import { formatDate, formatTime } from "@/lib/format";
 import {
   flattenSearchParams,
   readDate,
@@ -40,12 +41,16 @@ const ACTIONS = [
   "UPDATE_CLIENT",
   "CREATE_EXAM",
   "UPDATE_EXAM",
+  "UPDATE_EXAM_RESULT",
   "CREATE_TRIAL",
   "UPDATE_TRIAL",
+  "UPDATE_TRIAL_RESULT",
   "CREATE_LECTURE_ATTENDANCE",
   "UPDATE_LECTURE_ATTENDANCE",
+  "UPDATE_LECTURE_RESULT",
   "CREATE_PRACTICAL_TRAINING",
   "UPDATE_PRACTICAL_TRAINING",
+  "UPDATE_TRAINING_RESULT",
   "CREATE_PAYMENT",
   "UPDATE_PAYMENT",
   "CREATE_EXPENSE",
@@ -157,17 +162,20 @@ export default async function ActivityLogsPage({
                 { value: "", label: "All actions" },
                 ...ACTIONS.map((value) => ({
                   value,
-                  label: humanise(value),
+                  label: describeAction(value),
                 })),
               ],
             },
             {
               key: "entityType",
-              label: "Entity",
+              label: "Record",
               type: "select",
               options: [
-                { value: "", label: "All entities" },
-                ...ENTITY_TYPES.map((value) => ({ value, label: value })),
+                { value: "", label: "All records" },
+                ...ENTITY_TYPES.map((value) => ({
+                  value,
+                  label: describeEntity(value),
+                })),
               ],
             },
             { key: "from", label: "Date From", type: "date" },
@@ -190,8 +198,8 @@ export default async function ActivityLogsPage({
                   <TableHead>Time</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Action</TableHead>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead>Record</TableHead>
+                  <TableHead>What happened</TableHead>
                   <TableHead className="text-right" />
                 </TableRow>
               </TableHeader>
@@ -212,11 +220,13 @@ export default async function ActivityLogsPage({
                     </TableCell>
 
                     <TableCell>
-                      <Badge variant="outline">{humanise(entry.action)}</Badge>
+                      <Badge variant="outline">
+                        {describeAction(entry.action)}
+                      </Badge>
                     </TableCell>
 
                     <TableCell className="text-muted-foreground">
-                      {entry.entityType}
+                      {describeEntity(entry.entityType)}
                     </TableCell>
 
                     <TableCell className="max-w-80 truncate">
@@ -229,7 +239,6 @@ export default async function ActivityLogsPage({
                           id: entry.id,
                           action: entry.action,
                           entityType: entry.entityType,
-                          entityId: entry.entityId,
                           description: entry.description,
                           createdAt: entry.createdAt,
                           userName: entry.user?.fullName ?? "System",
