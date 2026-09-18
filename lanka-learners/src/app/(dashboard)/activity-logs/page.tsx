@@ -67,6 +67,8 @@ const ACTIONS = [
   "UPDATE_TRAINING_BOOKING",
   "UPDATE_BOOKING_ATTENDANCE",
   "DELETE_TRAINING_BOOKING",
+  "EXPORT_CLIENTS_PDF",
+  "EXPORT_CLIENTS_CSV",
 ] as const;
 
 const ENTITY_TYPES = [
@@ -81,6 +83,7 @@ const ENTITY_TYPES = [
   "VehicleClass",
   "SystemSetting",
   "TrainingBooking",
+  "ClientExport",
 ] as const;
 
 export default async function ActivityLogsPage({

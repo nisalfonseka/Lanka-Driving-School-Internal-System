@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   compress: true,
   // Don't advertise the framework in response headers.
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/client-exports/pdf": [
+      "./node_modules/@openfonts/noto-sans-sinhala_all/files/*.woff",
+    ],
+  },
   images: {
     // Profile photos are served resized and as AVIF/WebP by the image
     // optimizer, instead of the full original upload.

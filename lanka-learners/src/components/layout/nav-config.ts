@@ -6,6 +6,7 @@ import {
   CarIcon,
   ChartColumnIcon,
   ClipboardListIcon,
+  DownloadIcon,
   FileClockIcon,
   LayoutDashboardIcon,
   ReceiptIcon,
@@ -119,6 +120,12 @@ const MANAGEMENT: NavSection = {
       href: "/activity-logs",
       icon: FileClockIcon,
       description: "Review important actions recorded across the system.",
+    },
+    {
+      label: "Client Exports",
+      href: "/client-exports",
+      icon: DownloadIcon,
+      description: "Download and review weekly client snapshots.",
     },
     {
       label: "System Settings",

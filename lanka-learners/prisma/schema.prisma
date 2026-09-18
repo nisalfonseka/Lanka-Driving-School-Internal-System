@@ -139,6 +139,8 @@ enum AuditAction {
   UPDATE_TRAINING_BOOKING
   UPDATE_BOOKING_ATTENDANCE
   DELETE_TRAINING_BOOKING
+  EXPORT_CLIENTS_PDF
+  EXPORT_CLIENTS_CSV
 }
 
 // ---------------------------------------------------------------------------
@@ -187,6 +189,8 @@ model User {
 
   createdBookings TrainingBooking[] @relation("BookingCreatedBy")
   updatedBookings TrainingBooking[] @relation("BookingUpdatedBy")
+
+  capturedClientExports WeeklyClientExport[] @relation("ClientExportCapturedBy")
 
   @@index([role])
   @@index([status])
@@ -515,7 +519,7 @@ model CompanyExpense {
 
   expenseDate DateTime
   category    ExpenseCategory
-  amount      Decimal          @db.Decimal(12, 2)
+  amount      Decimal         @db.Decimal(12, 2)
   description String?
 
   createdById String?
@@ -561,6 +565,33 @@ model AuditLog {
   @@index([createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+/// Immutable source data for one weekly client export. The first PDF or CSV
+/// download in a week captures the snapshot; every later download for that
+/// week is generated from the same JSON so historical exports do not drift.
+model WeeklyClientExport {
+  id          String   @id @default(cuid())
+  weekStart   DateTime @unique
+  capturedAt  DateTime @default(now())
+  clientCount Int
+  snapshot    Json
+
+  capturedById String?
+  capturedBy   User?   @relation("ClientExportCapturedBy", fields: [capturedById], references: [id], onDelete: SetNull)
+
+  pdfDownloadCount     Int       @default(0)
+  pdfFirstDownloadedAt DateTime?
+  pdfLastDownloadedAt  DateTime?
+  csvDownloadCount     Int       @default(0)
+  csvFirstDownloadedAt DateTime?
+  csvLastDownloadedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weekStart])
+  @@map("weekly_client_exports")
 }
 
 model SystemSetting {

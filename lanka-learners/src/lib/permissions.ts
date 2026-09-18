@@ -11,6 +11,8 @@ export const OWNER_ONLY_PATHS = [
   "/analytics",
   "/employees",
   "/activity-logs",
+  "/api/client-exports",
+  "/client-exports",
   "/settings",
 ] as const;
 

@@ -38,6 +38,8 @@ const ACTION_LABELS: Record<string, string> = {
   UPDATE_TRAINING_BOOKING: "Updated a training booking",
   UPDATE_BOOKING_ATTENDANCE: "Marked booking attendance",
   DELETE_TRAINING_BOOKING: "Cancelled a training booking",
+  EXPORT_CLIENTS_PDF: "Downloaded a client PDF",
+  EXPORT_CLIENTS_CSV: "Downloaded a client CSV",
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -52,6 +54,7 @@ const ENTITY_LABELS: Record<string, string> = {
   VehicleClass: "Vehicle class",
   SystemSetting: "Settings",
   TrainingBooking: "Training booking",
+  ClientExport: "Weekly client export",
 };
 
 const FIELD_LABELS: Record<string, string> = {
