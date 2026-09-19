@@ -2,14 +2,13 @@ import { CarIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { ClassStatusBadges } from "@/components/practical-training/class-status-badges";
+import { ClassStatusDialog } from "@/components/practical-training/class-status-dialog";
 import { TrainingDialog } from "@/components/practical-training/training-dialog";
-import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { RecordFilters } from "@/components/shared/record-filters";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -72,7 +71,7 @@ export default async function PracticalTrainingPage({
     <>
       <PageHeader
         title="Practical Training"
-        description="Record training days. One day may cover several vehicle classes."
+        description="Record training days. One day may cover several vehicle classes, each with its own status."
         actions={
           <TrainingDialog
             clients={clients}
@@ -108,7 +107,7 @@ export default async function PracticalTrainingPage({
             },
             {
               key: "status",
-              label: "Status",
+              label: "Class Status",
               type: "select",
               options: [
                 { value: "", label: "All statuses" },
@@ -135,8 +134,7 @@ export default async function PracticalTrainingPage({
                   <TableHead>Date</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Admission No.</TableHead>
-                  <TableHead>Vehicle Classes</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Class Status</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Entered By</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -162,17 +160,7 @@ export default async function PracticalTrainingPage({
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {training.vehicleClasses.map((link) => (
-                          <Badge key={link.id} variant="outline">
-                            {link.vehicleClass.code}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <StatusBadge value={training.status} />
+                      <ClassStatusBadges links={training.vehicleClasses} />
                     </TableCell>
 
                     <TableCell className="max-w-40 truncate text-muted-foreground">
@@ -187,13 +175,16 @@ export default async function PracticalTrainingPage({
 
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <AddResultDialog
-                          kind="training"
+                        <ClassStatusDialog
                           id={training.id}
                           clientName={training.client.fullName}
                           date={training.trainingDate}
-                          status={training.status}
                           notes={training.notes}
+                          classes={training.vehicleClasses.map((link) => ({
+                            vehicleClassId: link.vehicleClassId,
+                            code: link.vehicleClass.code,
+                            status: link.status,
+                          }))}
                         />
                         {/* Only owners may correct the full record. */}
                         {canEdit ? (

@@ -225,8 +225,8 @@ export function TrainingDialog({
           </Field>
           {!isEdit ? (
             <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-              New records start as <span className="font-medium text-foreground">Pending</span>.
-              Record the outcome later with the <span className="font-medium text-foreground">Add Results</span> button.
+              Each class starts as <span className="font-medium text-foreground">Completed</span>.
+              If a class was missed, change it afterwards with the <span className="font-medium text-foreground">Class Status</span> button.
             </p>
           ) : null}
         </form>

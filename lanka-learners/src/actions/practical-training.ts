@@ -7,27 +7,22 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { formatDate, humanise } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { diffClassLinks, summariseClassStatuses } from "@/lib/training-status";
 import {
   trainingCreateSchema,
   trainingResultSchema,
   trainingUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { zodFieldErrors } from "./_shared";
+import { assertActiveVehicleClasses, zodFieldErrors } from "./_shared";
 
 /**
  * Practical training. A single training day may cover several vehicle classes,
  * each stored as its own row in `practical_training_classes` — never as a
- * comma-separated string.
+ * comma-separated string. The status lives on that row, so each class of a day
+ * is completed (or not) independently; new classes start as Completed.
  */
-
-async function assertActiveVehicleClasses(ids: string[]): Promise<boolean> {
-  const count = await prisma.vehicleClass.count({
-    where: { id: { in: ids }, status: "ACTIVE" },
-  });
-  return count === ids.length;
-}
 
 export async function createTrainingAction(
   payload: unknown
@@ -59,7 +54,6 @@ export async function createTrainingAction(
       data: {
         clientId: data.clientId,
         trainingDate: toUtcDateOnly(data.trainingDate),
-        status: "PENDING",
         notes: data.notes ?? null,
         createdById: user.id,
         vehicleClasses: {
@@ -70,10 +64,18 @@ export async function createTrainingAction(
       },
       select: {
         id: true,
-        vehicleClasses: { select: { vehicleClass: { select: { code: true } } } },
+        vehicleClasses: {
+          select: { status: true, vehicleClass: { select: { code: true } } },
+        },
       },
     });
 
+    const classStatuses = summariseClassStatuses(
+      training.vehicleClasses.map((link) => ({
+        code: link.vehicleClass.code,
+        status: link.status,
+      }))
+    );
     const codes = training.vehicleClasses
       .map((link) => link.vehicleClass.code)
       .join(", ");
@@ -86,9 +88,8 @@ export async function createTrainingAction(
       description: `Added practical training on ${formatDate(data.trainingDate)} (${codes}) for ${client.fullName} (${client.admissionNumber})`,
       newData: {
         trainingDate: data.trainingDate,
-        status: "PENDING",
+        classStatuses,
         notes: data.notes,
-        vehicleClasses: codes,
       },
     });
 
@@ -124,7 +125,13 @@ export async function updateTrainingAction(
     });
     if (!existing) return fail("That training record no longer exists.");
 
-    if (!(await assertActiveVehicleClasses(data.vehicleClassIds))) {
+    // Only classes being added must be active; one already on the record may
+    // have been deactivated since and can stay.
+    const { remove, add } = diffClassLinks(
+      existing.vehicleClasses,
+      data.vehicleClassIds
+    );
+    if (add.length > 0 && !(await assertActiveVehicleClasses(add))) {
       return fail("One or more selected vehicle classes are not available.");
     }
 
@@ -139,15 +146,20 @@ export async function updateTrainingAction(
         },
       });
 
-      await tx.practicalTrainingClass.deleteMany({
-        where: { trainingId: data.id },
-      });
-      await tx.practicalTrainingClass.createMany({
-        data: data.vehicleClassIds.map((vehicleClassId) => ({
-          trainingId: data.id,
-          vehicleClassId,
-        })),
-      });
+      // Classes that stay are left alone so their status survives a correction.
+      if (remove.length > 0) {
+        await tx.practicalTrainingClass.deleteMany({
+          where: { id: { in: remove.map((link) => link.id) } },
+        });
+      }
+      if (add.length > 0) {
+        await tx.practicalTrainingClass.createMany({
+          data: add.map((vehicleClassId) => ({
+            trainingId: data.id,
+            vehicleClassId,
+          })),
+        });
+      }
     });
 
     await writeAuditLog({
@@ -176,7 +188,7 @@ export async function updateTrainingAction(
   });
 }
 
-/** Records the outcome of a training session. Any signed-in user may do this. */
+/** Records the outcome of each class of a training day. Any signed-in user may do this. */
 export async function updateTrainingResultAction(
   payload: unknown
 ): Promise<ActionResult<{ id: string }>> {
@@ -197,27 +209,61 @@ export async function updateTrainingResultAction(
       where: { id: data.id },
       include: {
         client: { select: { id: true, fullName: true, admissionNumber: true } },
+        vehicleClasses: {
+          include: { vehicleClass: { select: { code: true } } },
+        },
       },
     });
     if (!existing) return fail("That training record no longer exists.");
 
-    await prisma.practicalTraining.update({
-      where: { id: data.id },
-      data: {
-        status: data.status,
-        notes: data.notes ?? null,
-        updatedById: user.id,
-      },
+    const linkByClassId = new Map(
+      existing.vehicleClasses.map((link) => [link.vehicleClassId, link])
+    );
+    const updates = data.classStatuses.flatMap((row) => {
+      const link = linkByClassId.get(row.vehicleClassId);
+      return link ? [{ linkId: link.id, status: row.status }] : [];
     });
+    if (updates.length !== data.classStatuses.length) {
+      return fail("One of those classes is not part of this training day.");
+    }
+
+    await prisma.$transaction([
+      ...updates.map((update) =>
+        prisma.practicalTrainingClass.update({
+          where: { id: update.linkId },
+          data: { status: update.status },
+        })
+      ),
+      prisma.practicalTraining.update({
+        where: { id: data.id },
+        data: { notes: data.notes ?? null, updatedById: user.id },
+      }),
+    ]);
+
+    const newStatusByClassId = new Map(
+      data.classStatuses.map((row) => [row.vehicleClassId, row.status])
+    );
+    const before = summariseClassStatuses(
+      existing.vehicleClasses.map((link) => ({
+        code: link.vehicleClass.code,
+        status: link.status,
+      }))
+    );
+    const after = summariseClassStatuses(
+      existing.vehicleClasses.map((link) => ({
+        code: link.vehicleClass.code,
+        status: newStatusByClassId.get(link.vehicleClassId) ?? link.status,
+      }))
+    );
 
     await writeAuditLog({
       userId: user.id,
       action: "UPDATE_TRAINING_RESULT",
       entityType: "PracticalTraining",
       entityId: data.id,
-      description: `Set practical training on ${formatDate(existing.trainingDate)} to ${humanise(data.status)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
-      oldData: { status: existing.status, notes: existing.notes },
-      newData: { status: data.status, notes: data.notes },
+      description: `Set class status for practical training on ${formatDate(existing.trainingDate)} (${after.join(", ")}) for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      oldData: { classStatuses: before, notes: existing.notes },
+      newData: { classStatuses: after, notes: data.notes },
     });
 
     revalidatePath("/practical-training");

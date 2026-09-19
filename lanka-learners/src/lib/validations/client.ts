@@ -19,6 +19,16 @@ export const scheduleTypeEnum = z.enum(["BEGINNER", "TRAINED"]);
 const MIN_AGE = 15;
 const MAX_AGE = 100;
 
+/** Shared by the registration form and the standalone documents editor. */
+const documentFields = {
+  medicalReportNumber: optionalText(60),
+  medicalIssueDate: optionalDateStringSchema,
+  schoolCertificateNumber: optionalText(60),
+  dmtBarcodeNumber: optionalText(60),
+  learnerPermitNumber: optionalText(60),
+  learnerPermitIssueDate: optionalDateStringSchema,
+};
+
 export const clientFormSchema = z
   .object({
     // Personal
@@ -48,12 +58,7 @@ export const clientFormSchema = z
     status: clientStatusEnum.default("ACTIVE"),
 
     // Documents
-    medicalReportNumber: optionalText(60),
-    medicalIssueDate: optionalDateStringSchema,
-    schoolCertificateNumber: optionalText(60),
-    dmtBarcodeNumber: optionalText(60),
-    learnerPermitNumber: optionalText(60),
-    learnerPermitIssueDate: optionalDateStringSchema,
+    ...documentFields,
 
     // Previous licence
     hasPreviousLicense: z.boolean().default(false),
@@ -113,6 +118,17 @@ export const clientFormSchema = z
 
 export type ClientFormInput = z.input<typeof clientFormSchema>;
 export type ClientFormValues = z.output<typeof clientFormSchema>;
+
+/** Documents can be added after registration, on their own. */
+export const clientDocumentsSchema = z.object({
+  clientId: cuidSchema,
+  ...documentFields,
+});
+
+export const clientStatusSchema = z.object({
+  clientId: cuidSchema,
+  status: clientStatusEnum,
+});
 
 export const clientSearchSchema = z.object({
   q: optionalText(120),

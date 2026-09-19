@@ -10,9 +10,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { ClientDocumentsDialog } from "@/components/clients/client-documents-dialog";
+import { ClientStatusControl } from "@/components/clients/client-status-control";
 import { ExamDialog } from "@/components/exams/exam-dialog";
 import { LectureDialog } from "@/components/lectures/lecture-dialog";
 import { PaymentDialog } from "@/components/payments/payment-dialog";
+import { ClassStatusBadges } from "@/components/practical-training/class-status-badges";
+import { ClassStatusDialog } from "@/components/practical-training/class-status-dialog";
 import { TrainingDialog } from "@/components/practical-training/training-dialog";
 import { AddResultDialog } from "@/components/shared/add-result-dialog";
 import { DetailList } from "@/components/shared/detail-list";
@@ -32,6 +36,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireUser } from "@/lib/auth/session";
+import { toDocumentValues } from "@/lib/client-documents";
 import { canEditRecords } from "@/lib/permissions";
 import {
   calculateAge,
@@ -46,6 +51,7 @@ import {
   getActiveVehicleClasses,
   getClientProfile,
 } from "@/lib/queries/clients";
+import { groupTrialsByClass } from "@/lib/trial-groups";
 
 export const metadata: Metadata = { title: "Client Profile" };
 
@@ -70,6 +76,12 @@ export default async function ClientProfilePage({
   const clientLabel = `${client.fullName} · ${client.admissionNumber}`;
   // Employees get a read-only list; only owners may correct existing records.
   const canEdit = canEditRecords(user.role);
+  const documentValues = toDocumentValues(client.document);
+  // Trials are shown per vehicle class: every assigned class gets a section.
+  const trialGroups = groupTrialsByClass(
+    records.trials,
+    client.vehicleClasses.map((link) => link.vehicleClass)
+  );
   const paymentProgress =
     finance.agreedFee > 0
       ? Math.min(100, Math.round((finance.totalPaid / finance.agreedFee) * 100))
@@ -103,7 +115,16 @@ export default async function ClientProfilePage({
                 <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
                   {client.fullName}
                 </h1>
-                <StatusBadge value={client.status} />
+                {/* Owners can change the status in place; everyone else sees it. */}
+                {canEdit ? (
+                  <ClientStatusControl
+                    key={client.status}
+                    clientId={client.id}
+                    status={client.status}
+                  />
+                ) : (
+                  <StatusBadge value={client.status} />
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <span className="rounded-full bg-muted px-3 py-1.5 tabular text-muted-foreground">
@@ -307,7 +328,16 @@ export default async function ClientProfilePage({
         <TabsContent value="documents" className="mt-4">
           <Card>
             <CardContent className="p-4 md:p-6">
-              <h2 className="mb-3 text-sm font-semibold">Documents</h2>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold">Documents</h2>
+                {/* Employees can add what was missing at registration; owners can correct anything. */}
+                <ClientDocumentsDialog
+                  clientId={client.id}
+                  clientLabel={clientLabel}
+                  values={documentValues}
+                  isOwner={canEdit}
+                />
+              </div>
               <DetailList
                 items={[
                   {
@@ -460,59 +490,121 @@ export default async function ClientProfilePage({
         <TabsContent value="trials" className="mt-4">
           <Card className="overflow-hidden p-0">
             <div className="flex items-center justify-between border-b p-4">
-              <h2 className="text-sm font-semibold">Practical Trials</h2>
+              <div>
+                <h2 className="text-sm font-semibold">Practical Trials</h2>
+                <p className="text-xs text-muted-foreground">
+                  Each vehicle class has its own trials and results.
+                </p>
+              </div>
               <TrialDialog
+                vehicleClasses={vehicleClasses}
                 defaultClientId={client.id}
                 fixedClientLabel={clientLabel}
                 compact
               />
             </div>
 
-            {records.trials.length === 0 ? (
+            {trialGroups.length === 0 ? (
               <EmptyState title="No trials recorded" />
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>DMT Barcode</TableHead>
-                      <TableHead>Result</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Entered By</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {records.trials.map((trial) => (
-                      <TableRow key={trial.id}>
-                        <TableCell>{formatDate(trial.trialDate)}</TableCell>
-                        <TableCell className="tabular">
-                          {trial.dmtBarcode ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge value={trial.result} />
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-muted-foreground">
-                          {trial.resultNotes ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {trial.updatedBy?.fullName ?? trial.createdBy?.fullName ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <AddResultDialog
-                            kind="trial"
-                            id={trial.id}
-                            clientName={client.fullName}
-                            date={trial.trialDate}
-                            status={trial.result}
-                            notes={trial.resultNotes}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="divide-y">
+                {trialGroups.map((group) => (
+                  <section key={group.classRef?.id ?? "no-class"}>
+                    <div className="flex flex-wrap items-center gap-2 bg-muted/40 px-4 py-2.5">
+                      {group.classRef ? (
+                        <>
+                          <Badge className="bg-primary/10 text-primary hover:bg-primary/15">
+                            {group.classRef.code}
+                          </Badge>
+                          <span className="text-sm font-medium">
+                            {group.classRef.name}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium">
+                            Class not recorded
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            Recorded before classes were tracked
+                            {canEdit ? " — use Edit to assign one" : ""}
+                          </span>
+                        </>
+                      )}
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {group.trials.length}{" "}
+                        {group.trials.length === 1 ? "trial" : "trials"}
+                      </span>
+                    </div>
+
+                    {group.trials.length === 0 ? (
+                      <p className="px-4 py-4 text-sm text-muted-foreground">
+                        No trials recorded for this class yet.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date</TableHead>
+                              <TableHead>DMT Barcode</TableHead>
+                              <TableHead>Result</TableHead>
+                              <TableHead>Notes</TableHead>
+                              <TableHead>Entered By</TableHead>
+                              <TableHead className="text-right">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {group.trials.map((trial) => (
+                              <TableRow key={trial.id}>
+                                <TableCell>{formatDate(trial.trialDate)}</TableCell>
+                                <TableCell className="tabular">
+                                  {trial.dmtBarcode ?? "—"}
+                                </TableCell>
+                                <TableCell>
+                                  <StatusBadge value={trial.result} />
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate text-muted-foreground">
+                                  {trial.resultNotes ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {trial.updatedBy?.fullName ?? trial.createdBy?.fullName ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <AddResultDialog
+                                      kind="trial"
+                                      id={trial.id}
+                                      clientName={client.fullName}
+                                      date={trial.trialDate}
+                                      status={trial.result}
+                                      notes={trial.resultNotes}
+                                      classLabel={trial.vehicleClass?.code ?? null}
+                                    />
+                                    {/* Only owners may correct the full record. */}
+                                    {canEdit ? (
+                                      <TrialDialog
+                                        vehicleClasses={vehicleClasses}
+                                        trial={{
+                                          id: trial.id,
+                                          clientId: client.id,
+                                          clientLabel,
+                                          trialDate: trial.trialDate,
+                                          dmtBarcode: trial.dmtBarcode,
+                                          vehicleClass: trial.vehicleClass,
+                                        }}
+                                      />
+                                    ) : null}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </section>
+                ))}
               </div>
             )}
           </Card>
@@ -600,8 +692,7 @@ export default async function ClientProfilePage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Vehicle Classes</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Class Status</TableHead>
                       <TableHead>Notes</TableHead>
                       <TableHead>Entered By</TableHead>
                       <TableHead className="text-right">Action</TableHead>
@@ -614,16 +705,7 @@ export default async function ClientProfilePage({
                           {formatDate(training.trainingDate)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {training.vehicleClasses.map((link) => (
-                              <Badge key={link.id} variant="outline">
-                                {link.vehicleClass.code}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge value={training.status} />
+                          <ClassStatusBadges links={training.vehicleClasses} />
                         </TableCell>
                         <TableCell className="max-w-xs truncate text-muted-foreground">
                           {training.notes ?? "—"}
@@ -632,13 +714,16 @@ export default async function ClientProfilePage({
                           {training.updatedBy?.fullName ?? training.createdBy?.fullName ?? "—"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <AddResultDialog
-                            kind="training"
+                          <ClassStatusDialog
                             id={training.id}
                             clientName={client.fullName}
                             date={training.trainingDate}
-                            status={training.status}
                             notes={training.notes}
+                            classes={training.vehicleClasses.map((link) => ({
+                              vehicleClassId: link.vehicleClassId,
+                              code: link.vehicleClass.code,
+                              status: link.status,
+                            }))}
                           />
                         </TableCell>
                       </TableRow>

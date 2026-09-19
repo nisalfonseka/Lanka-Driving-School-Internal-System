@@ -19,6 +19,8 @@ export type ExportWrittenExam = {
 
 export type ExportTrial = {
   trialDate: string;
+  /** Missing in snapshots captured before trials were tracked per class. */
+  vehicleClass?: ExportVehicleClass | null;
   dmtBarcode: string | null;
   result: string;
   resultNotes: string | null;
@@ -37,11 +39,17 @@ export type ExportLecture = {
   updatedBy: ExportActor;
 };
 
+export type ExportTrainingClass = ExportVehicleClass & {
+  /** Missing in snapshots captured before each class had its own status. */
+  status?: string;
+};
+
 export type ExportTraining = {
   trainingDate: string;
-  status: string;
+  /** Older snapshots only: a single status for the whole training day. */
+  status?: string;
   notes: string | null;
-  vehicleClasses: ExportVehicleClass[];
+  vehicleClasses: ExportTrainingClass[];
   createdAt: string;
   updatedAt: string;
   createdBy: ExportActor;

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { updateExamResultAction } from "@/actions/exams";
 import { updateLectureResultAction } from "@/actions/lectures";
-import { updateTrainingResultAction } from "@/actions/practical-training";
 import { updateTrialResultAction } from "@/actions/trials";
 import { Field } from "@/components/forms/field";
 import { SelectField } from "@/components/forms/select-field";
@@ -39,13 +38,6 @@ const LECTURE_STATUSES = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
-const TRAINING_STATUSES = [
-  { value: "PENDING", label: "Pending" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "ABSENT", label: "Absent" },
-  { value: "CANCELLED", label: "Cancelled" },
-];
-
 type Props =
   | { kind: "exam"; id: string; clientName: string; date: Date | string; status: string }
   | {
@@ -55,28 +47,22 @@ type Props =
       date: Date | string;
       status: string;
       notes: string | null;
+      /** Vehicle class the trial was sat for, when known. */
+      classLabel: string | null;
     }
-  | { kind: "lecture"; id: string; clientName: string; date: Date | string; status: string }
-  | {
-      kind: "training";
-      id: string;
-      clientName: string;
-      date: Date | string;
-      status: string;
-      notes: string | null;
-    };
+  | { kind: "lecture"; id: string; clientName: string; date: Date | string; status: string };
 
 const TITLES: Record<Props["kind"], string> = {
   exam: "Written exam result",
   trial: "Practical trial result",
   lecture: "Lecture attendance",
-  training: "Practical training status",
 };
 
 /**
  * "Add Results" — lets any signed-in user (including employees) record the
  * outcome of an existing record. Only the status/result can change here; the
- * date, client and other details stay locked.
+ * date, client and other details stay locked. (Practical training records each
+ * class separately, so it has its own Class Status dialog.)
  */
 export function AddResultDialog(props: Props) {
   const router = useRouter();
@@ -84,20 +70,15 @@ export function AddResultDialog(props: Props) {
   const [pending, setPending] = useState(false);
   const [status, setStatus] = useState(props.status);
   const [notes, setNotes] = useState(
-    "notes" in props ? (props.notes ?? "") : ""
+    props.kind === "trial" ? (props.notes ?? "") : ""
   );
 
-  const hasNotes = props.kind === "trial" || props.kind === "training";
-  const options =
-    props.kind === "lecture"
-      ? LECTURE_STATUSES
-      : props.kind === "training"
-        ? TRAINING_STATUSES
-        : EXAM_RESULTS;
+  const hasNotes = props.kind === "trial";
+  const options = props.kind === "lecture" ? LECTURE_STATUSES : EXAM_RESULTS;
 
   function resetForm() {
     setStatus(props.status);
-    setNotes("notes" in props ? (props.notes ?? "") : "");
+    setNotes(props.kind === "trial" ? (props.notes ?? "") : "");
   }
 
   async function submit() {
@@ -112,13 +93,7 @@ export function AddResultDialog(props: Props) {
                 result: status,
                 resultNotes: notes,
               })
-            : props.kind === "lecture"
-              ? await updateLectureResultAction({ id: props.id, status })
-              : await updateTrainingResultAction({
-                  id: props.id,
-                  status,
-                  notes,
-                });
+            : await updateLectureResultAction({ id: props.id, status });
 
       if (!result.ok) {
         toast.error(result.error);
@@ -154,7 +129,11 @@ export function AddResultDialog(props: Props) {
         <DialogHeader>
           <DialogTitle>{TITLES[props.kind]}</DialogTitle>
           <DialogDescription>
-            {props.clientName} · {formatDate(props.date)}
+            {props.clientName}
+            {props.kind === "trial" && props.classLabel
+              ? ` · ${props.classLabel}`
+              : ""}{" "}
+            · {formatDate(props.date)}
           </DialogDescription>
         </DialogHeader>
 

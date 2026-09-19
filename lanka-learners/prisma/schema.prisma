@@ -111,6 +111,8 @@ enum AuditAction {
   LOGOUT
   CREATE_CLIENT
   UPDATE_CLIENT
+  UPDATE_CLIENT_STATUS
+  UPDATE_CLIENT_DOCUMENTS
   CREATE_EXAM
   UPDATE_EXAM
   UPDATE_EXAM_RESULT
@@ -266,6 +268,7 @@ model VehicleClass {
   clients          ClientVehicleClass[]
   previousLicenses PreviousLicenseClass[]
   trainings        PracticalTrainingClass[]
+  trials           TrialExam[]
 
   @@index([status])
   @@map("vehicle_classes")
@@ -363,9 +366,12 @@ model WrittenExam {
   @@map("written_exams")
 }
 
+/// One row per vehicle class sat, so each class carries its own result. Null
+/// only on trials recorded before classes were tracked and not yet assigned.
 model TrialExam {
-  id       String @id @default(cuid())
-  clientId String
+  id             String  @id @default(cuid())
+  clientId       String
+  vehicleClassId String?
 
   trialDate   DateTime
   dmtBarcode  String?
@@ -378,13 +384,15 @@ model TrialExam {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  client    Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  createdBy User?  @relation("TrialCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy User?  @relation("TrialUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicleClass VehicleClass? @relation(fields: [vehicleClassId], references: [id], onDelete: Restrict)
+  createdBy    User?         @relation("TrialCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy    User?         @relation("TrialUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([clientId, trialDate])
   @@index([trialDate])
   @@index([result])
+  @@index([vehicleClassId])
   @@map("trial_exams")
 }
 
@@ -421,7 +429,6 @@ model PracticalTraining {
   clientId String
 
   trainingDate DateTime
-  status       TrainingStatus @default(PENDING)
   notes        String?
 
   createdById String?
@@ -440,11 +447,13 @@ model PracticalTraining {
   @@map("practical_trainings")
 }
 
-/// One training day can cover several vehicle classes (e.g. B and B AUTO).
+/// One training day can cover several vehicle classes (e.g. B and B AUTO), and
+/// each class has its own status — the day itself carries none.
 model PracticalTrainingClass {
-  id             String @id @default(cuid())
+  id             String         @id @default(cuid())
   trainingId     String
   vehicleClassId String
+  status         TrainingStatus @default(COMPLETED)
 
   training     PracticalTraining @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   vehicleClass VehicleClass      @relation(fields: [vehicleClassId], references: [id], onDelete: Restrict)

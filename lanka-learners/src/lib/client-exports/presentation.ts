@@ -1,4 +1,6 @@
-import type { ClientExportSnapshot } from "./types";
+import { compareClassCodes } from "@/lib/vehicle-classes";
+
+import type { ClientExportSnapshot, ExportTraining } from "./types";
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
@@ -61,5 +63,43 @@ export function classList(classes: { code: string; name: string }[]): string {
   return classes.length === 0
     ? "Not provided"
     : classes.map((item) => `${item.code} - ${item.name}`).join(", ");
+}
+
+/** Per-class statuses of a training day: newer snapshots only. */
+function classStatuses(record: ExportTraining): { code: string; status: string }[] {
+  return record.vehicleClasses.flatMap((item) =>
+    item.status ? [{ code: item.code, status: item.status }] : []
+  );
+}
+
+/**
+ * Snapshots are stored as captured, so this reads both shapes: a status per
+ * class (newer) or one status for the whole day (older).
+ */
+function trainingStatuses(record: ExportTraining): string[] {
+  const perClass = classStatuses(record).map((item) => item.status);
+  if (perClass.length > 0) return perClass;
+  return record.status ? [record.status] : [];
+}
+
+/** Training days on which at least one class had this status. */
+export function countTrainingsWithStatus(
+  records: ExportTraining[],
+  status: string
+): number {
+  return records.filter((record) => trainingStatuses(record).includes(status))
+    .length;
+}
+
+/** "A: Absent, B: Completed" for a newer snapshot, "Completed" for an older one. */
+export function trainingStatusText(record: ExportTraining): string {
+  const perClass = classStatuses(record);
+  if (perClass.length > 0) {
+    return [...perClass]
+      .sort((a, b) => compareClassCodes(a.code, b.code))
+      .map((item) => `${item.code}: ${exportEnum(item.status)}`)
+      .join(", ");
+  }
+  return record.status ? exportEnum(record.status) : "Not provided";
 }
 

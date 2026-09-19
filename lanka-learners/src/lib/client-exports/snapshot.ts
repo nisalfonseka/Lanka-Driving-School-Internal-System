@@ -44,6 +44,7 @@ export async function captureClientSnapshot(
       trials: {
         orderBy: { trialDate: "asc" },
         include: {
+          vehicleClass: { select: { code: true, name: true } },
           createdBy: { select: { fullName: true } },
           updatedBy: { select: { fullName: true } },
         },
@@ -126,6 +127,7 @@ export async function captureClientSnapshot(
     })),
     trials: client.trials.map((record) => ({
       trialDate: iso(record.trialDate),
+      vehicleClass: record.vehicleClass,
       dmtBarcode: record.dmtBarcode,
       result: record.result,
       resultNotes: record.resultNotes,
@@ -144,9 +146,11 @@ export async function captureClientSnapshot(
     })),
     trainings: client.practicalTraining.map((record) => ({
       trainingDate: iso(record.trainingDate),
-      status: record.status,
       notes: record.notes,
-      vehicleClasses: record.vehicleClasses.map(({ vehicleClass }) => vehicleClass),
+      vehicleClasses: record.vehicleClasses.map(({ vehicleClass, status }) => ({
+        ...vehicleClass,
+        status,
+      })),
       createdAt: iso(record.createdAt),
       updatedAt: iso(record.updatedAt),
       createdBy: actor(record.createdBy),

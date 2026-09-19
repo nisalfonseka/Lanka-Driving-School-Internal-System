@@ -6,18 +6,32 @@ import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import {
+  DOCUMENT_LABELS,
+  changedFields,
+  lockedFieldsChanged,
+  toDocumentValues,
+  type DocumentValues,
+} from "@/lib/client-documents";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
+import { humanise } from "@/lib/format";
 import { uploadClientPhoto } from "@/lib/storage";
-import { clientFormSchema } from "@/lib/validations/client";
+import {
+  clientDocumentsSchema,
+  clientFormSchema,
+  clientStatusSchema,
+} from "@/lib/validations/client";
 
-import { expireCache } from "./_shared";
+import { expireCache, zodFieldErrors } from "./_shared";
 
 /**
  * Client mutations.
  *
  * Employees may register new clients but may never modify an existing one —
  * that rule is enforced here, on the server, not by hiding the Edit button.
+ * The one exception is filling in documents that were not available at
+ * registration (see `updateClientDocumentsAction`).
  */
 
 type ClientPayload = Record<string, unknown>;
@@ -301,6 +315,146 @@ export async function updateClientAction(
         totalAgreedFee: data.totalAgreedFee,
         status: data.status,
       },
+    });
+
+    revalidatePath("/clients");
+    revalidatePath(`/clients/${clientId}`);
+    expireCache(CACHE_TAGS.clientOptions, CACHE_TAGS.stats);
+
+    return ok({ id: clientId });
+  });
+}
+
+/**
+ * Adds or corrects a client's documents after registration. They are often not
+ * available on the day, so every signed-in user may fill in a field that is
+ * still blank — but only an owner may change or clear a value already recorded.
+ */
+export async function updateClientDocumentsAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireUserAction();
+
+    const parsed = clientDocumentsSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail(
+        "Please correct the highlighted fields.",
+        zodFieldErrors(parsed.error)
+      );
+    }
+
+    const data = parsed.data;
+
+    const client = await prisma.client.findUnique({
+      where: { id: data.clientId },
+      select: { fullName: true, admissionNumber: true, document: true },
+    });
+    if (!client) return fail("That client no longer exists.");
+
+    const before = toDocumentValues(client.document);
+    const after: DocumentValues = {
+      medicalReportNumber: data.medicalReportNumber ?? null,
+      medicalIssueDate: data.medicalIssueDate ?? null,
+      schoolCertificateNumber: data.schoolCertificateNumber ?? null,
+      dmtBarcodeNumber: data.dmtBarcodeNumber ?? null,
+      learnerPermitNumber: data.learnerPermitNumber ?? null,
+      learnerPermitIssueDate: data.learnerPermitIssueDate ?? null,
+    };
+
+    if (user.role !== "OWNER") {
+      const locked = lockedFieldsChanged(before, after);
+      if (locked.length > 0) {
+        return fail(
+          `Only an owner can change a document that is already recorded (${locked
+            .map((field) => DOCUMENT_LABELS[field])
+            .join(", ")}).`
+        );
+      }
+    }
+
+    const changed = changedFields(before, after);
+    if (changed.length === 0) return fail("There is nothing new to save.");
+
+    const values = {
+      medicalReportNumber: after.medicalReportNumber,
+      medicalIssueDate: after.medicalIssueDate
+        ? toUtcDateOnly(after.medicalIssueDate)
+        : null,
+      schoolCertificateNumber: after.schoolCertificateNumber,
+      dmtBarcodeNumber: after.dmtBarcodeNumber,
+      learnerPermitNumber: after.learnerPermitNumber,
+      learnerPermitIssueDate: after.learnerPermitIssueDate
+        ? toUtcDateOnly(after.learnerPermitIssueDate)
+        : null,
+    };
+
+    await prisma.$transaction([
+      prisma.clientDocument.upsert({
+        where: { clientId: data.clientId },
+        create: { clientId: data.clientId, ...values },
+        update: values,
+      }),
+      prisma.client.update({
+        where: { id: data.clientId },
+        data: { updatedById: user.id },
+      }),
+    ]);
+
+    const verb = changed.every((field) => before[field] === null)
+      ? "Added"
+      : "Corrected";
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_CLIENT_DOCUMENTS",
+      entityType: "Client",
+      entityId: data.clientId,
+      description: `${verb} documents for ${client.fullName} (${client.admissionNumber}): ${changed
+        .map((field) => DOCUMENT_LABELS[field])
+        .join(", ")}`,
+      oldData: before,
+      newData: after,
+    });
+
+    revalidatePath(`/clients/${data.clientId}`);
+
+    return ok({ id: data.clientId });
+  });
+}
+
+/** Owners can mark a client Active or Completed straight from the profile. */
+export async function setClientStatusAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const user = await requireOwnerAction();
+
+    const parsed = clientStatusSchema.safeParse(payload);
+    if (!parsed.success) return fail("Invalid request.");
+
+    const { clientId, status } = parsed.data;
+
+    const existing = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { fullName: true, admissionNumber: true, status: true },
+    });
+    if (!existing) return fail("That client no longer exists.");
+    if (existing.status === status) return ok({ id: clientId });
+
+    await prisma.client.update({
+      where: { id: clientId },
+      data: { status, updatedById: user.id },
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "UPDATE_CLIENT_STATUS",
+      entityType: "Client",
+      entityId: clientId,
+      description: `Changed ${existing.fullName} (${existing.admissionNumber}) from ${humanise(existing.status)} to ${humanise(status)}`,
+      oldData: { status: existing.status },
+      newData: { status },
     });
 
     revalidatePath("/clients");

@@ -73,8 +73,22 @@ const trialShape = {
   dmtBarcode: optionalText(60),
 };
 
-export const trialCreateSchema = z.object(trialShape);
-export const trialUpdateSchema = z.object({ id: cuidSchema, ...trialShape });
+// Adding a trial takes any number of classes and records one trial per class,
+// so each class carries its own result. A recorded trial belongs to one class.
+export const trialCreateSchema = z.object({
+  ...trialShape,
+  vehicleClassIds: vehicleClassIdsSchema,
+});
+export const trialUpdateSchema = z.object({
+  id: cuidSchema,
+  ...trialShape,
+  vehicleClassId: cuidSchema,
+});
+
+/** The edit dialog keeps its single class in `vehicleClassIds`, like the add dialog. */
+export const trialEditFormSchema = trialCreateSchema.extend({
+  vehicleClassIds: z.array(cuidSchema).length(1, "Select one vehicle class"),
+});
 
 export const trialResultSchema = z.object({
   id: cuidSchema,
@@ -125,9 +139,17 @@ export const trainingUpdateSchema = z.object({
   ...trainingShape,
 });
 
+/** Each class of a training day carries its own status. */
 export const trainingResultSchema = z.object({
   id: cuidSchema,
-  status: trainingStatusEnum,
+  classStatuses: z
+    .array(z.object({ vehicleClassId: cuidSchema, status: trainingStatusEnum }))
+    .min(1, "Set a status for at least one class")
+    .refine(
+      (rows) =>
+        new Set(rows.map((row) => row.vehicleClassId)).size === rows.length,
+      "Each class can only be listed once"
+    ),
   notes: optionalText(500),
 });
 

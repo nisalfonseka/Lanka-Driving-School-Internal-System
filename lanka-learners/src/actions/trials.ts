@@ -15,13 +15,20 @@ import {
   trialUpdateSchema,
 } from "@/lib/validations/operations";
 
-import { expireCache, zodFieldErrors } from "./_shared";
+import {
+  assertActiveVehicleClasses,
+  expireCache,
+  zodFieldErrors,
+} from "./_shared";
 
-/** Practical trials. A client may sit as many as needed. */
+/**
+ * Practical trials. A client may sit as many as needed, and every trial belongs
+ * to one vehicle class so that each class carries its own result.
+ */
 
 export async function createTrialAction(
   payload: unknown
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ ids: string[] }>> {
   return runAction(async () => {
     const user = await requireUserAction();
 
@@ -41,35 +48,56 @@ export async function createTrialAction(
     });
     if (!client) return fail("That client no longer exists.");
 
-    const trial = await prisma.trialExam.create({
-      data: {
-        clientId: data.clientId,
-        trialDate: toUtcDateOnly(data.trialDate),
-        dmtBarcode: data.dmtBarcode ?? null,
-        result: "PENDING",
-        createdById: user.id,
-      },
-      select: { id: true },
-    });
+    if (!(await assertActiveVehicleClasses(data.vehicleClassIds))) {
+      return fail("One or more selected vehicle classes are not available.");
+    }
 
-    await writeAuditLog({
-      userId: user.id,
-      action: "CREATE_TRIAL",
-      entityType: "TrialExam",
-      entityId: trial.id,
-      description: `Added practical trial on ${formatDate(data.trialDate)} for ${client.fullName} (${client.admissionNumber})`,
-      newData: {
-        trialDate: data.trialDate,
-        dmtBarcode: data.dmtBarcode,
-        result: "PENDING",
-      },
+    const classes = await prisma.vehicleClass.findMany({
+      where: { id: { in: data.vehicleClassIds } },
+      select: { id: true, code: true },
     });
+    const codeById = new Map(classes.map((row) => [row.id, row.code]));
+
+    // One trial per class, all or nothing.
+    const trials = await prisma.$transaction(
+      data.vehicleClassIds.map((vehicleClassId) =>
+        prisma.trialExam.create({
+          data: {
+            clientId: data.clientId,
+            vehicleClassId,
+            trialDate: toUtcDateOnly(data.trialDate),
+            dmtBarcode: data.dmtBarcode ?? null,
+            result: "PENDING",
+            createdById: user.id,
+          },
+          select: { id: true },
+        })
+      )
+    );
+
+    for (const [index, trial] of trials.entries()) {
+      const code = codeById.get(data.vehicleClassIds[index]) ?? "";
+
+      await writeAuditLog({
+        userId: user.id,
+        action: "CREATE_TRIAL",
+        entityType: "TrialExam",
+        entityId: trial.id,
+        description: `Added practical trial on ${formatDate(data.trialDate)} (${code}) for ${client.fullName} (${client.admissionNumber})`,
+        newData: {
+          trialDate: data.trialDate,
+          vehicleClass: code,
+          dmtBarcode: data.dmtBarcode,
+          result: "PENDING",
+        },
+      });
+    }
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${data.clientId}`);
     expireCache(CACHE_TAGS.stats);
 
-    return ok({ id: trial.id });
+    return ok({ ids: trials.map((trial) => trial.id) });
   });
 }
 
@@ -93,14 +121,27 @@ export async function updateTrialAction(
       where: { id: data.id },
       include: {
         client: { select: { fullName: true, admissionNumber: true } },
+        vehicleClass: { select: { code: true } },
       },
     });
     if (!existing) return fail("That trial record no longer exists.");
+
+    const vehicleClass = await prisma.vehicleClass.findUnique({
+      where: { id: data.vehicleClassId },
+      select: { code: true, status: true },
+    });
+    // A class that has since been deactivated may stay on an old trial; it just
+    // cannot be newly chosen.
+    const classChanged = data.vehicleClassId !== existing.vehicleClassId;
+    if (!vehicleClass || (classChanged && vehicleClass.status !== "ACTIVE")) {
+      return fail("That vehicle class is not available.");
+    }
 
     await prisma.trialExam.update({
       where: { id: data.id },
       data: {
         clientId: data.clientId,
+        vehicleClassId: data.vehicleClassId,
         trialDate: toUtcDateOnly(data.trialDate),
         dmtBarcode: data.dmtBarcode ?? null,
         updatedById: user.id,
@@ -115,10 +156,12 @@ export async function updateTrialAction(
       description: `Corrected practical trial for ${existing.client.fullName} (${existing.client.admissionNumber})`,
       oldData: {
         trialDate: existing.trialDate,
+        vehicleClass: existing.vehicleClass?.code ?? null,
         dmtBarcode: existing.dmtBarcode,
       },
       newData: {
         trialDate: data.trialDate,
+        vehicleClass: vehicleClass.code,
         dmtBarcode: data.dmtBarcode,
       },
     });
@@ -152,6 +195,7 @@ export async function updateTrialResultAction(
       where: { id: data.id },
       include: {
         client: { select: { id: true, fullName: true, admissionNumber: true } },
+        vehicleClass: { select: { code: true } },
       },
     });
     if (!existing) return fail("That trial record no longer exists.");
@@ -165,12 +209,16 @@ export async function updateTrialResultAction(
       },
     });
 
+    const classLabel = existing.vehicleClass
+      ? ` (${existing.vehicleClass.code})`
+      : "";
+
     await writeAuditLog({
       userId: user.id,
       action: "UPDATE_TRIAL_RESULT",
       entityType: "TrialExam",
       entityId: data.id,
-      description: `Set practical trial result to ${humanise(data.result)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
+      description: `Set practical trial result${classLabel} to ${humanise(data.result)} for ${existing.client.fullName} (${existing.client.admissionNumber})`,
       oldData: { result: existing.result, resultNotes: existing.resultNotes },
       newData: { result: data.result, resultNotes: data.resultNotes },
     });

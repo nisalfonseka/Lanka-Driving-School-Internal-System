@@ -99,7 +99,11 @@ export async function searchTrials(input: RecordFilterInput) {
       orderBy: { trialDate: "desc" },
       skip: offsetFor(input.page),
       take: RECORDS_PAGE_SIZE,
-      include: { client: clientSelect, ...enteredBy },
+      include: {
+        client: clientSelect,
+        vehicleClass: { select: { id: true, code: true, name: true } },
+        ...enteredBy,
+      },
     }),
     prisma.trialExam.count({ where }),
   ]);
@@ -145,6 +149,16 @@ export async function searchLectures(input: RecordFilterInput) {
 
 export async function searchTrainings(input: RecordFilterInput) {
   const vehicleClassId = input.extra?.vehicleClassId;
+  const status = input.extra?.status as
+    | Prisma.EnumTrainingStatusFilter["equals"]
+    | undefined;
+
+  // Status belongs to each class of a day, so the class and status filters must
+  // match the *same* class row: "class B was absent", not "B ran, someone was absent".
+  const classLink: Prisma.PracticalTrainingClassWhereInput = {
+    ...(vehicleClassId ? { vehicleClassId } : {}),
+    ...(status ? { status } : {}),
+  };
 
   const where: Prisma.PracticalTrainingWhereInput = {
     ...(input.clientId ? { clientId: input.clientId } : {}),
@@ -152,15 +166,7 @@ export async function searchTrainings(input: RecordFilterInput) {
     ...(dateRange(input.from, input.to)
       ? { trainingDate: dateRange(input.from, input.to) }
       : {}),
-    ...(vehicleClassId
-      ? { vehicleClasses: { some: { vehicleClassId } } }
-      : {}),
-    ...(input.extra?.status
-      ? {
-          status: input.extra
-            .status as Prisma.EnumTrainingStatusFilter["equals"],
-        }
-      : {}),
+    ...(vehicleClassId || status ? { vehicleClasses: { some: classLink } } : {}),
   };
 
   const [rows, total] = await Promise.all([
@@ -172,7 +178,10 @@ export async function searchTrainings(input: RecordFilterInput) {
       include: {
         client: clientSelect,
         ...enteredBy,
-        vehicleClasses: { include: { vehicleClass: true } },
+        vehicleClasses: {
+          include: { vehicleClass: true },
+          orderBy: { vehicleClass: { code: "asc" } },
+        },
       },
     }),
     prisma.practicalTraining.count({ where }),

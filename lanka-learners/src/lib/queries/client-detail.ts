@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { countCompletedTrainingDays } from "@/lib/training-status";
 
 const RECORD_LIMIT = 100;
 
@@ -26,6 +27,7 @@ export async function getClientRecords(clientId: string) {
         orderBy: { trialDate: "desc" },
         take: RECORD_LIMIT,
         include: {
+          vehicleClass: { select: { id: true, code: true, name: true } },
           createdBy: { select: { fullName: true } },
           updatedBy: { select: { fullName: true } },
         },
@@ -46,7 +48,10 @@ export async function getClientRecords(clientId: string) {
         include: {
           createdBy: { select: { fullName: true } },
           updatedBy: { select: { fullName: true } },
-          vehicleClasses: { include: { vehicleClass: true } },
+          vehicleClasses: {
+            include: { vehicleClass: true },
+            orderBy: { vehicleClass: { code: "asc" } },
+          },
         },
       }),
       prisma.clientPayment.findMany({
@@ -72,8 +77,7 @@ export async function getClientRecords(clientId: string) {
     payments,
     history,
     trainingSummary: {
-      completedDays: trainings.filter((row) => row.status === "COMPLETED")
-        .length,
+      completedDays: countCompletedTrainingDays(trainings),
     },
     lectureSummary: {
       total: lectures.length,

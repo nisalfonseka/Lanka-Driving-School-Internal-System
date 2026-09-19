@@ -63,7 +63,7 @@ export function AuditDetailDialog({ entry }: { entry: AuditEntry }) {
         </DialogHeader>
 
         <div className="space-y-5">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-muted/40 p-3 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border bg-muted/40 p-3 text-sm sm:grid-cols-3">
             <div>
               <dt className="text-xs text-muted-foreground">Done by</dt>
               <dd className="font-medium">{entry.userName}</dd>
@@ -79,6 +79,10 @@ export function AuditDetailDialog({ entry }: { entry: AuditEntry }) {
             <div>
               <dt className="text-xs text-muted-foreground">Device</dt>
               <dd>{device ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">IP address</dt>
+              <dd className="tabular break-all">{entry.ipAddress ?? "—"}</dd>
             </div>
           </dl>
 

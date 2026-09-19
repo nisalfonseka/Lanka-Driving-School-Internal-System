@@ -9,6 +9,7 @@ import { Pagination } from "@/components/shared/pagination";
 import { RecordFilters } from "@/components/shared/record-filters";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { TrialDialog } from "@/components/trials/trial-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -21,7 +22,7 @@ import {
 import { requireUser } from "@/lib/auth/session";
 import { canEditRecords } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
-import { getClientOptions } from "@/lib/queries/clients";
+import { getActiveVehicleClasses, getClientOptions } from "@/lib/queries/clients";
 import { searchTrials } from "@/lib/queries/operations";
 import {
   flattenSearchParams,
@@ -47,6 +48,7 @@ export default async function TrialsPage({
   const params = flattenSearchParams(await searchParams);
   // Started now so it runs alongside the search instead of after it.
   const clientsPromise = getClientOptions();
+  const vehicleClasses = await getActiveVehicleClasses();
 
   const { rows, total, page, pageSize } = await searchTrials({
     q: readText(params.q),
@@ -63,9 +65,13 @@ export default async function TrialsPage({
     <>
       <PageHeader
         title="Practical Trials"
-        description="Record practical trial attempts, results and examiner notes."
+        description="Record practical trial attempts, results and examiner notes — one record per vehicle class."
         actions={
-          <TrialDialog clients={clients} defaultClientId={params.clientId} />
+          <TrialDialog
+            clients={clients}
+            vehicleClasses={vehicleClasses}
+            defaultClientId={params.clientId}
+          />
         }
       />
 
@@ -111,6 +117,7 @@ export default async function TrialsPage({
                   <TableHead>Date</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Admission No.</TableHead>
+                  <TableHead>Class</TableHead>
                   <TableHead>DMT Barcode</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Notes</TableHead>
@@ -135,6 +142,16 @@ export default async function TrialsPage({
 
                     <TableCell className="tabular">
                       {trial.client.admissionNumber}
+                    </TableCell>
+
+                    <TableCell>
+                      {trial.vehicleClass ? (
+                        <Badge variant="outline">{trial.vehicleClass.code}</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          Not recorded
+                        </span>
+                      )}
                     </TableCell>
 
                     <TableCell className="tabular text-muted-foreground">
@@ -164,16 +181,19 @@ export default async function TrialsPage({
                           date={trial.trialDate}
                           status={trial.result}
                           notes={trial.resultNotes}
+                          classLabel={trial.vehicleClass?.code ?? null}
                         />
                         {/* Only owners may correct the full record. */}
                         {canEdit ? (
                           <TrialDialog
+                            vehicleClasses={vehicleClasses}
                             trial={{
                               id: trial.id,
                               clientId: trial.client.id,
                               clientLabel: `${trial.client.fullName} · ${trial.client.admissionNumber}`,
                               trialDate: trial.trialDate,
                               dmtBarcode: trial.dmtBarcode,
+                              vehicleClass: trial.vehicleClass,
                             }}
                           />
                         ) : null}

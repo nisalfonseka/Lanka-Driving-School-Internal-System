@@ -10,6 +10,8 @@ const ACTION_LABELS: Record<string, string> = {
   LOGOUT: "Signed out",
   CREATE_CLIENT: "Registered a client",
   UPDATE_CLIENT: "Updated a client",
+  UPDATE_CLIENT_STATUS: "Changed a client's status",
+  UPDATE_CLIENT_DOCUMENTS: "Updated client documents",
   CREATE_EXAM: "Added a written exam",
   UPDATE_EXAM: "Corrected a written exam",
   UPDATE_EXAM_RESULT: "Added a written exam result",
@@ -75,11 +77,14 @@ const FIELD_LABELS: Record<string, string> = {
   paymentDate: "Payment date",
   expenseDate: "Expense date",
   dmtBarcode: "DMT barcode",
+  dmtBarcodeNumber: "DMT barcode number",
   attendance: "Attendance",
   result: "Result",
   resultNotes: "Notes",
   notes: "Notes",
+  vehicleClass: "Vehicle class",
   vehicleClasses: "Vehicle classes",
+  classStatuses: "Class status",
   billNumber: "Bill number",
   amount: "Amount",
   paymentType: "Payment type",
@@ -149,7 +154,12 @@ export function formatFieldValue(key: string, value: unknown): string {
 
   const text = String(value);
   if (ISO_DATE.test(text)) return formatDate(text);
-  if (ENUM_VALUE.test(text) && key !== "code" && !key.endsWith("Number")) {
+  if (
+    ENUM_VALUE.test(text) &&
+    key !== "code" &&
+    key !== "vehicleClass" &&
+    !key.endsWith("Number")
+  ) {
     return humanise(text);
   }
   return text;

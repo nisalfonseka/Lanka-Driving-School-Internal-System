@@ -15,9 +15,11 @@ import {
   ageAtSnapshot,
   classList,
   clientFinancials,
+  countTrainingsWithStatus,
   exportDate,
   exportEnum,
   exportMoney,
+  trainingStatusText,
 } from "./presentation";
 import type { ClientExportSnapshot, WeeklyClientSnapshot } from "./types";
 import { exportWeekLabel } from "./weeks";
@@ -204,6 +206,7 @@ function ClientPage({
   const finances = clientFinancials(client);
   const latestExam = latestRecord(client.writtenExams);
   const latestTrial = latestRecord(client.trials);
+  const latestTraining = latestRecord(client.trainings);
   const age = ageAtSnapshot(client.dateOfBirth, snapshot.capturedAt);
   const weekStart = new Date(snapshot.weekStart);
 
@@ -309,7 +312,17 @@ function ClientPage({
             <Field label="Trial passes" value={countResult(client.trials, "PASS")} />
             <Field
               label="Latest trial"
-              value={latestTrial ? `${exportDate(latestTrial.trialDate)} | ${exportEnum(latestTrial.result)}` : null}
+              value={
+                latestTrial
+                  ? [
+                      exportDate(latestTrial.trialDate),
+                      latestTrial.vehicleClass?.code,
+                      exportEnum(latestTrial.result),
+                    ]
+                      .filter(Boolean)
+                      .join(" | ")
+                  : null
+              }
               wide
             />
           </Section>
@@ -319,13 +332,13 @@ function ClientPage({
             <Field label="Lecture present" value={countStatus(client.lectures, "PRESENT")} />
             <Field label="Lecture absent" value={countStatus(client.lectures, "ABSENT")} />
             <Field label="Practical training records" value={client.trainings.length} />
-            <Field label="Training completed" value={countStatus(client.trainings, "COMPLETED")} />
-            <Field label="Training absent" value={countStatus(client.trainings, "ABSENT")} />
+            <Field label="Training completed" value={countTrainingsWithStatus(client.trainings, "COMPLETED")} />
+            <Field label="Training absent" value={countTrainingsWithStatus(client.trainings, "ABSENT")} />
             <Field
               label="Latest training"
               value={
-                latestRecord(client.trainings)
-                  ? `${exportDate(latestRecord(client.trainings)?.trainingDate)} | ${exportEnum(latestRecord(client.trainings)?.status ?? "")}`
+                latestTraining
+                  ? `${exportDate(latestTraining.trainingDate)} | ${trainingStatusText(latestTraining)}`
                   : null
               }
               wide

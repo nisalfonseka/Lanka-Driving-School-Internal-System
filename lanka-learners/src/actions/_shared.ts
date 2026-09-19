@@ -4,6 +4,17 @@ import { updateTag } from "next/cache";
 import type { ZodError } from "zod";
 
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import { prisma } from "@/lib/db";
+
+/** True when every id is an existing, active vehicle class. */
+export async function assertActiveVehicleClasses(
+  ids: string[]
+): Promise<boolean> {
+  const count = await prisma.vehicleClass.count({
+    where: { id: { in: ids }, status: "ACTIVE" },
+  });
+  return count === ids.length;
+}
 
 /** Flattens a Zod error into the `fieldErrors` shape used by ActionResult. */
 export function zodFieldErrors(error: ZodError): Record<string, string[]> {
