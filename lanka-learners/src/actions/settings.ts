@@ -7,8 +7,10 @@ import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction } from "@/lib/auth/session";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
+import { smsSettingsRows } from "@/lib/sms/settings";
 import {
   settingsSchema,
+  smsSettingsSchema,
   vehicleClassCreateSchema,
   vehicleClassUpdateSchema,
 } from "@/lib/validations/admin";
@@ -164,6 +166,59 @@ export async function updateSettingsAction(
 
     revalidatePath("/settings");
     revalidatePath("/", "layout");
+    expireCache(CACHE_TAGS.settings);
+
+    return ok(null);
+  });
+}
+
+export async function updateSmsSettingsAction(
+  payload: unknown
+): Promise<ActionResult<null>> {
+  return runAction(async () => {
+    const owner = await requireOwnerAction();
+
+    const parsed = smsSettingsSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail(
+        "Please correct the highlighted fields.",
+        zodFieldErrors(parsed.error)
+      );
+    }
+
+    if (parsed.data.enabled && !parsed.data.senderId) {
+      return fail("Enter the approved Text.lk sender ID before enabling SMS.", {
+        senderId: ["Sender ID is required when SMS is enabled"],
+      });
+    }
+
+    const rows = smsSettingsRows(parsed.data);
+    const previous = await prisma.systemSetting.findMany({
+      where: { key: { in: rows.map((row) => row.key) } },
+    });
+
+    await prisma.$transaction(
+      rows.map(({ key, value }) =>
+        prisma.systemSetting.upsert({
+          where: { key },
+          create: { key, value },
+          update: { value },
+        })
+      )
+    );
+
+    await writeAuditLog({
+      userId: owner.id,
+      action: "UPDATE_SETTINGS",
+      entityType: "SmsSettings",
+      description: "Updated SMS notification settings",
+      oldData: Object.fromEntries(
+        previous.map((row) => [row.key, row.value])
+      ),
+      newData: Object.fromEntries(rows.map((row) => [row.key, row.value])),
+    });
+
+    revalidatePath("/settings");
     expireCache(CACHE_TAGS.settings);
 
     return ok(null);

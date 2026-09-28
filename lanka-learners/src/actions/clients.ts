@@ -17,6 +17,7 @@ import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { humanise } from "@/lib/format";
 import { uploadClientPhoto } from "@/lib/storage";
+import { notifyClientBySms } from "@/lib/sms/notify";
 import {
   clientDocumentsSchema,
   clientFormSchema,
@@ -153,6 +154,15 @@ export async function createClientAction(
         scheduleType: data.scheduleType,
         totalAgreedFee: data.totalAgreedFee,
       },
+    });
+
+    await notifyClientBySms({
+      event: "CLIENT_REGISTERED",
+      recipient: data.mobileMain,
+      clientName: client.fullName,
+      admissionNumber: client.admissionNumber,
+      entityType: "Client",
+      entityId: client.id,
     });
 
     revalidatePath("/clients");
@@ -437,7 +447,12 @@ export async function setClientStatusAction(
 
     const existing = await prisma.client.findUnique({
       where: { id: clientId },
-      select: { fullName: true, admissionNumber: true, status: true },
+      select: {
+        fullName: true,
+        admissionNumber: true,
+        mobileMain: true,
+        status: true,
+      },
     });
     if (!existing) return fail("That client no longer exists.");
     if (existing.status === status) return ok({ id: clientId });
@@ -456,6 +471,17 @@ export async function setClientStatusAction(
       oldData: { status: existing.status },
       newData: { status },
     });
+
+    if (status === "COMPLETED") {
+      await notifyClientBySms({
+        event: "CLIENT_COMPLETED",
+        recipient: existing.mobileMain,
+        clientName: existing.fullName,
+        admissionNumber: existing.admissionNumber,
+        entityType: "Client",
+        entityId: clientId,
+      });
+    }
 
     revalidatePath("/clients");
     revalidatePath(`/clients/${clientId}`);

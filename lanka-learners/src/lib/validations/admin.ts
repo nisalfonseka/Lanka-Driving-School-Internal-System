@@ -143,6 +143,31 @@ export const settingsSchema = z.object({
 
 export type SettingsInput = z.infer<typeof settingsSchema>;
 
+export const smsEventSchema = z.enum([
+  "CLIENT_REGISTERED",
+  "PAYMENT_RECEIVED",
+  "WRITTEN_EXAM_SCHEDULED",
+  "WRITTEN_EXAM_RESULT",
+  "PRACTICAL_TRIAL_SCHEDULED",
+  "PRACTICAL_TRIAL_RESULT",
+  "CLIENT_COMPLETED",
+]);
+
+export const smsSettingsSchema = z.object({
+  enabled: z.boolean(),
+  senderId: z
+    .string()
+    .trim()
+    .max(20, "Sender ID must be 20 characters or fewer")
+    .regex(
+      /^[A-Za-z0-9._ -]*$/,
+      "Sender ID may only contain letters, numbers, spaces, dots, underscores and hyphens"
+    ),
+  events: z.record(smsEventSchema, z.boolean()),
+});
+
+export type SmsSettingsInput = z.infer<typeof smsSettingsSchema>;
+
 // ---------------------------------------------------------------------------
 // Audit log filters
 // ---------------------------------------------------------------------------

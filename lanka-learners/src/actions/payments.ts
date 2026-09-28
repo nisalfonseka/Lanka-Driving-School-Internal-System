@@ -9,6 +9,7 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/format";
+import { notifyClientBySms } from "@/lib/sms/notify";
 import {
   paymentCreateSchema,
   paymentUpdateSchema,
@@ -39,7 +40,7 @@ export async function createPaymentAction(
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { fullName: true, admissionNumber: true },
+      select: { fullName: true, admissionNumber: true, mobileMain: true },
     });
     if (!client) return fail("That client no longer exists.");
 
@@ -74,6 +75,17 @@ export async function createPaymentAction(
       entityId: payment.id,
       description: `Added payment of ${formatCurrency(data.amount)} (bill ${data.billNumber}) for ${client.fullName} (${client.admissionNumber})`,
       newData: data,
+    });
+
+    await notifyClientBySms({
+      event: "PAYMENT_RECEIVED",
+      recipient: client.mobileMain,
+      clientName: client.fullName,
+      admissionNumber: client.admissionNumber,
+      amount: data.amount,
+      billNumber: data.billNumber,
+      entityType: "ClientPayment",
+      entityId: payment.id,
     });
 
     revalidatePath("/payments");

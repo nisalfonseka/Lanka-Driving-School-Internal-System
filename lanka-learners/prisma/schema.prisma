@@ -612,3 +612,26 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+/// Operational history for automatic client SMS notifications. Delivery
+/// failures never roll back the business event that caused the message.
+model SmsDeliveryLog {
+  id String @id @default(cuid())
+
+  event      String
+  recipient  String
+  message    String
+  status     String
+  entityType String?
+  entityId   String?
+
+  providerMessageId String?
+  error             String?
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([event, createdAt])
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@map("sms_delivery_logs")
+}

@@ -9,6 +9,7 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate, humanise } from "@/lib/format";
+import { notifyClientBySms } from "@/lib/sms/notify";
 import {
   examCreateSchema,
   examResultSchema,
@@ -37,7 +38,12 @@ export async function createExamAction(
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { id: true, fullName: true, admissionNumber: true },
+      select: {
+        id: true,
+        fullName: true,
+        admissionNumber: true,
+        mobileMain: true,
+      },
     });
     if (!client) return fail("That client no longer exists.");
 
@@ -63,6 +69,16 @@ export async function createExamAction(
         dmtBarcode: data.dmtBarcode,
         result: "PENDING",
       },
+    });
+
+    await notifyClientBySms({
+      event: "WRITTEN_EXAM_SCHEDULED",
+      recipient: client.mobileMain,
+      clientName: client.fullName,
+      admissionNumber: client.admissionNumber,
+      date: data.examDate,
+      entityType: "WrittenExam",
+      entityId: exam.id,
     });
 
     revalidatePath("/exams");
@@ -149,7 +165,14 @@ export async function updateExamResultAction(
     const existing = await prisma.writtenExam.findUnique({
       where: { id: data.id },
       include: {
-        client: { select: { id: true, fullName: true, admissionNumber: true } },
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+            admissionNumber: true,
+            mobileMain: true,
+          },
+        },
       },
     });
     if (!existing) return fail("That exam record no longer exists.");
@@ -171,6 +194,18 @@ export async function updateExamResultAction(
       oldData: { result: existing.result },
       newData: { result: data.result },
     });
+
+    if (existing.result !== data.result) {
+      await notifyClientBySms({
+        event: "WRITTEN_EXAM_RESULT",
+        recipient: existing.client.mobileMain,
+        clientName: existing.client.fullName,
+        admissionNumber: existing.client.admissionNumber,
+        result: data.result,
+        entityType: "WrittenExam",
+        entityId: data.id,
+      });
+    }
 
     revalidatePath("/exams");
     revalidatePath(`/clients/${existing.client.id}`);

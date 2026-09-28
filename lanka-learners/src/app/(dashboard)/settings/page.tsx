@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { SmsSettingsForm } from "@/components/settings/sms-settings-form";
 import { VehicleClassDialog } from "@/components/settings/vehicle-class-dialog";
 import {
   Card,
@@ -22,14 +23,16 @@ import {
 import { requireOwnerPage } from "@/lib/auth/session";
 import { getAllVehicleClasses } from "@/lib/queries/clients";
 import { getSettings } from "@/lib/settings";
+import { getSmsSettings } from "@/lib/sms/settings";
 
 export const metadata: Metadata = { title: "System Settings" };
 
 export default async function SettingsPage() {
   await requireOwnerPage();
 
-  const [settings, vehicleClasses] = await Promise.all([
+  const [settings, smsSettings, vehicleClasses] = await Promise.all([
     getSettings(),
+    getSmsSettings(),
     getAllVehicleClasses(),
   ]);
 
@@ -49,6 +52,21 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SettingsForm defaults={settings} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>SMS Notifications</CardTitle>
+          <CardDescription>
+            Send automatic Text.lk messages after selected client events.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SmsSettingsForm
+            defaults={smsSettings}
+            tokenConfigured={Boolean(process.env.TEXT_LK_API_TOKEN?.trim())}
+          />
         </CardContent>
       </Card>
 

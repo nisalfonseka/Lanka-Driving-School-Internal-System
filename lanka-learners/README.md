@@ -76,6 +76,7 @@ cp .env.example .env
 | `INITIAL_OWNER_NAME` | Display name of the first owner. |
 | `INITIAL_OWNER_EMAIL` | Optional email for the first owner. |
 | `NEXT_PUBLIC_APP_NAME` | Application name shown in the UI. |
+| `TEXT_LK_API_TOKEN` | Server-only Text.lk OAuth 2.0 token for automatic SMS. |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob token — used for profile photos when present. |
 | `CLOUDINARY_*` | Cloudinary credentials, used only when no Blob token is set. |
 
@@ -86,6 +87,12 @@ openssl rand -base64 48
 ```
 
 `.env` is git-ignored. Never commit it.
+
+For automatic client SMS notifications, set `TEXT_LK_API_TOKEN` in the
+deployment environment. Then sign in as the owner, open **System Settings →
+SMS Notifications**, enter the Text.lk-approved sender ID, enable the gateway,
+and choose the events that should send messages. The token is only read on the
+server and must never use a `NEXT_PUBLIC_` prefix.
 
 > Profile photo upload needs **one** storage option configured. Everything else works without it; the upload button reports a clear message if storage is missing.
 

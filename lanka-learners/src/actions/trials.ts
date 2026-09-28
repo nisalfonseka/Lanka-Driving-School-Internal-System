@@ -9,6 +9,7 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate, humanise } from "@/lib/format";
+import { notifyClientBySms } from "@/lib/sms/notify";
 import {
   trialCreateSchema,
   trialResultSchema,
@@ -44,7 +45,7 @@ export async function createTrialAction(
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { fullName: true, admissionNumber: true },
+      select: { fullName: true, admissionNumber: true, mobileMain: true },
     });
     if (!client) return fail("That client no longer exists.");
 
@@ -92,6 +93,21 @@ export async function createTrialAction(
         },
       });
     }
+
+    const classCodes = data.vehicleClassIds
+      .map((id) => codeById.get(id))
+      .filter(Boolean)
+      .join(", ");
+    await notifyClientBySms({
+      event: "PRACTICAL_TRIAL_SCHEDULED",
+      recipient: client.mobileMain,
+      clientName: client.fullName,
+      admissionNumber: client.admissionNumber,
+      date: data.trialDate,
+      vehicleClasses: classCodes,
+      entityType: "TrialExam",
+      entityId: trials.map((trial) => trial.id).join(","),
+    });
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${data.clientId}`);
@@ -194,7 +210,14 @@ export async function updateTrialResultAction(
     const existing = await prisma.trialExam.findUnique({
       where: { id: data.id },
       include: {
-        client: { select: { id: true, fullName: true, admissionNumber: true } },
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+            admissionNumber: true,
+            mobileMain: true,
+          },
+        },
         vehicleClass: { select: { code: true } },
       },
     });
@@ -222,6 +245,19 @@ export async function updateTrialResultAction(
       oldData: { result: existing.result, resultNotes: existing.resultNotes },
       newData: { result: data.result, resultNotes: data.resultNotes },
     });
+
+    if (existing.result !== data.result) {
+      await notifyClientBySms({
+        event: "PRACTICAL_TRIAL_RESULT",
+        recipient: existing.client.mobileMain,
+        clientName: existing.client.fullName,
+        admissionNumber: existing.client.admissionNumber,
+        result: data.result,
+        vehicleClasses: existing.vehicleClass?.code ?? "Unassigned",
+        entityType: "TrialExam",
+        entityId: data.id,
+      });
+    }
 
     revalidatePath("/trials");
     revalidatePath(`/clients/${existing.client.id}`);
