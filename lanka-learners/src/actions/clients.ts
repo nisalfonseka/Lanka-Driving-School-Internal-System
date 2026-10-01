@@ -59,6 +59,36 @@ async function assertVehicleClassesExist(ids: string[]): Promise<boolean> {
   return count === ids.length;
 }
 
+async function findClientIdentityConflicts(
+  idNumber: string,
+  admissionNumber: string,
+  excludeClientId?: string
+): Promise<Record<string, string[]> | null> {
+  const matches = await prisma.client.findMany({
+    where: {
+      ...(excludeClientId ? { id: { not: excludeClientId } } : {}),
+      OR: [{ idNumber }, { admissionNumber }],
+    },
+    select: { idNumber: true, admissionNumber: true },
+  });
+
+  const fieldErrors: Record<string, string[]> = {};
+  if (matches.some((client) => client.idNumber === idNumber)) {
+    fieldErrors.idNumber = [
+      "A client with this NIC / ID number already exists.",
+    ];
+  }
+  if (
+    matches.some((client) => client.admissionNumber === admissionNumber)
+  ) {
+    fieldErrors.admissionNumber = [
+      "This admission number is already in use.",
+    ];
+  }
+
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : null;
+}
+
 export async function createClientAction(
   payload: ClientPayload
 ): Promise<ActionResult<{ id: string }>> {
@@ -72,6 +102,14 @@ export async function createClientAction(
     }
 
     const data = parsed.data;
+
+    const identityConflicts = await findClientIdentityConflicts(
+      data.idNumber,
+      data.admissionNumber
+    );
+    if (identityConflicts) {
+      return fail("A client with these details already exists.", identityConflicts);
+    }
 
     const allIds = [
       ...data.vehicleClassIds,
@@ -198,6 +236,15 @@ export async function updateClientAction(
     });
 
     if (!existing) return fail("That client no longer exists.");
+
+    const identityConflicts = await findClientIdentityConflicts(
+      data.idNumber,
+      data.admissionNumber,
+      clientId
+    );
+    if (identityConflicts) {
+      return fail("A client with these details already exists.", identityConflicts);
+    }
 
     const allIds = [
       ...data.vehicleClassIds,

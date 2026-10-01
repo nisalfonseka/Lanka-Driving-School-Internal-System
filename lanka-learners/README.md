@@ -69,7 +69,7 @@ cp .env.example .env
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string. For Neon, append `?sslmode=require`. |
+| `DATABASE_URL` | PostgreSQL connection string. For Neon, append `?sslmode=verify-full`. |
 | `JWT_SECRET` | Signing key for session tokens. **Minimum 32 characters** — the app refuses to start otherwise. |
 | `INITIAL_OWNER_USERNAME` | Username for the first owner account. |
 | `INITIAL_OWNER_PASSWORD` | Password for the first owner. Hashed by the seed; never stored in plain text. |
@@ -212,7 +212,7 @@ npm run start
 4. **Configure environment variables** in *Project → Settings → Environment Variables* for Production (and Preview if you use it):
 
    ```
-   DATABASE_URL        postgresql://…?sslmode=require
+   DATABASE_URL        postgresql://…?sslmode=verify-full
    JWT_SECRET          <openssl rand -base64 48>
    INITIAL_OWNER_USERNAME
    INITIAL_OWNER_PASSWORD

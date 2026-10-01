@@ -3,6 +3,7 @@ import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "@/generated/prisma/client";
+import { enforceVerifiedPostgresSsl } from "@/lib/database-url";
 
 /**
  * Prisma 7 requires a driver adapter for SQL databases.
@@ -14,12 +15,15 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  const configuredConnectionString = process.env.DATABASE_URL;
+  if (!configuredConnectionString) {
     throw new Error(
       "DATABASE_URL is not set. Copy .env.example to .env and configure it."
     );
   }
+  const connectionString = enforceVerifiedPostgresSsl(
+    configuredConnectionString
+  );
 
   // Connection pooling: one bounded pool per server instance. Pair this with
   // Neon's pooled ("-pooler") connection string so many instances share a
@@ -35,10 +39,11 @@ function createPrismaClient() {
 
   return new PrismaClient({
     adapter,
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["warn", "error"]
-        : ["error"],
+    // Unexpected action failures are logged by runAction. Keeping Prisma's
+    // production event logger off avoids noisy logs for handled P2002 races.
+    ...(process.env.NODE_ENV === "development"
+      ? { log: ["warn", "error"] as const }
+      : {}),
   });
 }
 

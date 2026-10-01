@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import type { SmsEvent } from "./events";
 import { normaliseSriLankanMobile } from "./messages";
 import { getSmsSettings } from "./settings";
+import { buildTextLkSendRequest } from "./textlk";
 
 const TEXT_LK_SEND_URL = "https://app.text.lk/api/v3/sms/send";
 
@@ -88,10 +89,9 @@ export async function sendSmsNotification(
   }
 
   try {
-    const body = new URLSearchParams({
+    const body = buildTextLkSendRequest({
       recipient,
-      sender_id: settings.senderId,
-      type: "plain",
+      senderId: settings.senderId,
       message: input.message,
     });
     const response = await fetch(TEXT_LK_SEND_URL, {
@@ -99,9 +99,9 @@ export async function sendSmsNotification(
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body,
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
       cache: "no-store",
     });
