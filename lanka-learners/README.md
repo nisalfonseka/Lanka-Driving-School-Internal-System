@@ -25,6 +25,12 @@ PostgreSQL  (Neon in production)
 
 No Express server, no server-side sessions, no local file storage — so it deploys to Vercel unchanged.
 
+The deployed site is also an installable, online-first Progressive Web App
+(PWA). Installation gives staff a standalone desktop/mobile window while the
+database, authentication, uploads and SMS credentials remain safely on the
+server. The service worker caches only public application assets; authenticated
+pages, APIs and client data are never stored for offline use.
+
 ### Stack
 
 | Layer | Choice |
@@ -160,6 +166,16 @@ npm run dev
 ```
 
 Open http://localhost:3000 and sign in.
+
+### Install as a desktop app
+
+After deploying over HTTPS, open the system in Microsoft Edge or Google Chrome
+and select **Install app** when prompted. You can also use the browser menu:
+**Apps → Install this site as an app**. The installed app can be pinned to the
+Windows taskbar, Start menu, macOS Dock or a mobile home screen.
+
+The system remains online-first. If the network is unavailable, it shows a
+safe offline screen rather than displaying cached client or financial records.
 
 ### Checks
 

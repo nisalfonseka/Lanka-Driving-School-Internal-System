@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#19398d" />
+    <title>Offline · Lanka Learners</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f3f5fb; color: #010101; }
+      main { width: min(100%, 420px); text-align: center; border: 1px solid #e3e3e3; border-radius: 18px; background: #fff; padding: 32px; box-shadow: 0 16px 48px rgba(26, 33, 55, .10); }
+      img { width: 72px; height: 72px; object-fit: contain; }
+      h1 { margin: 20px 0 8px; font-size: 22px; }
+      p { margin: 0; color: #454545; font-size: 14px; line-height: 1.65; }
+      button { margin-top: 24px; border: 0; border-radius: 9px; background: #19398d; color: #fff; padding: 11px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+      button:focus-visible { outline: 3px solid rgba(25, 57, 141, .35); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192x192.png" alt="" />
+      <h1>You are offline</h1>
+      <p>
+        Lanka Learners needs an internet connection to protect and synchronize
+        client records. Check your connection, then try again.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

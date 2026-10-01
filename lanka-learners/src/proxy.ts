@@ -14,7 +14,14 @@ import { isOwnerOnlyPath } from "@/lib/permissions";
  */
 
 /** The root path is the sign-in screen, so it must stay reachable signed out. */
-const PUBLIC_PATHS = ["/", "/login", "/api/auth/login"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/api/auth/login",
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/offline.html",
+];
 
 function securityHeaders(response: NextResponse): NextResponse {
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -22,7 +29,7 @@ function securityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    "camera=(self), microphone=(), geolocation=(), interest-cohort=()"
   );
   return response;
 }
