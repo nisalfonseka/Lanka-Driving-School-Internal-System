@@ -10,5 +10,9 @@ export default async function PrintLayout({
   children: React.ReactNode;
 }) {
   await requireUser();
-  return <div className="min-h-dvh bg-muted/40 p-4 print:bg-white print:p-0">{children}</div>;
+  return (
+    <div className="print-shell min-h-dvh bg-muted/40 p-4 print:bg-white print:p-0">
+      {children}
+    </div>
+  );
 }

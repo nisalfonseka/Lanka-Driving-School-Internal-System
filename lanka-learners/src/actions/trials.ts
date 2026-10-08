@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertClientAccess } from "@/lib/branches";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -42,10 +43,16 @@ export async function createTrialAction(
     }
 
     const data = parsed.data;
+    if (!(await assertClientAccess(user, data.clientId))) return fail("That client no longer exists.");
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { fullName: true, admissionNumber: true, mobileMain: true },
+      select: {
+        fullName: true,
+        admissionNumber: true,
+        mobileMain: true,
+        branch: { select: { name: true } },
+      },
     });
     if (!client) return fail("That client no longer exists.");
 
@@ -103,6 +110,7 @@ export async function createTrialAction(
       recipient: client.mobileMain,
       clientName: client.fullName,
       admissionNumber: client.admissionNumber,
+      branchName: client.branch.name,
       date: data.trialDate,
       vehicleClasses: classCodes,
       entityType: "TrialExam",
@@ -141,6 +149,7 @@ export async function updateTrialAction(
       },
     });
     if (!existing) return fail("That trial record no longer exists.");
+    await assertClientAccess(user, existing.clientId);
 
     const vehicleClass = await prisma.vehicleClass.findUnique({
       where: { id: data.vehicleClassId },
@@ -216,12 +225,15 @@ export async function updateTrialResultAction(
             fullName: true,
             admissionNumber: true,
             mobileMain: true,
+            branch: { select: { name: true } },
           },
         },
         vehicleClass: { select: { code: true } },
       },
     });
     if (!existing) return fail("That trial record no longer exists.");
+
+    await assertClientAccess(user, existing.clientId);
 
     await prisma.trialExam.update({
       where: { id: data.id },
@@ -252,6 +264,7 @@ export async function updateTrialResultAction(
         recipient: existing.client.mobileMain,
         clientName: existing.client.fullName,
         admissionNumber: existing.client.admissionNumber,
+        branchName: existing.client.branch.name,
         result: data.result,
         vehicleClasses: existing.vehicleClass?.code ?? "Unassigned",
         entityType: "TrialExam",

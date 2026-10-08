@@ -12,11 +12,13 @@ export function ExportDownloadButton({
   week,
   captured,
   disabled = false,
+  branchId,
 }: {
   format: "pdf" | "csv";
   week: string;
   captured: boolean;
   disabled?: boolean;
+  branchId?: string;
 }) {
   const [downloading, setDownloading] = useState(false);
   const router = useRouter();
@@ -25,7 +27,8 @@ export function ExportDownloadButton({
   async function download() {
     setDownloading(true);
     try {
-      const response = await fetch(`/api/client-exports/${format}?week=${week}`, {
+      const query = new URLSearchParams({ week, ...(branchId ? { branchId } : {}) });
+      const response = await fetch(`/api/client-exports/${format}?${query.toString()}`, {
         method: "POST",
         credentials: "same-origin",
         cache: "no-store",

@@ -8,6 +8,8 @@ export const CACHE_TAGS = {
   clientOptions: "client-options",
   /** Active vehicle classes. */
   vehicleClasses: "vehicle-classes",
+  /** Branch directory used by forms, filters and access checks. */
+  branches: "branches",
   /** School name, receipt footer, etc. — read on every page. */
   settings: "settings",
   /** Dashboard and analytics figures. */

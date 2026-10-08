@@ -25,6 +25,8 @@ export async function notifyClientBySms(
     message: buildSmsMessage(event, {
       ...messageData,
       businessName: settings.businessName,
+      businessPhone: settings.businessPhone,
+      businessWebsite: settings.businessWebsite,
     }),
     entityType,
     entityId,

@@ -8,6 +8,7 @@ import { SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { BranchOption } from "@/lib/branches";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -19,7 +20,7 @@ const STATUS_OPTIONS = [
  * Filters are held in the URL so results are shareable, bookmarkable and
  * survive a refresh — and so the query runs on the server.
  */
-export function ClientFilters() {
+export function ClientFilters({ branches }: { branches?: BranchOption[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -30,6 +31,7 @@ export function ClientFilters() {
     from: searchParams.get("from") ?? "",
     to: searchParams.get("to") ?? "",
     status: searchParams.get("status") ?? "",
+    branchId: searchParams.get("branchId") ?? "",
   });
 
   const hasFilters = Object.values(values).some((value) => value !== "");
@@ -52,6 +54,7 @@ export function ClientFilters() {
       from: "",
       to: "",
       status: "",
+      branchId: "",
     });
     router.push("/clients");
   }
@@ -90,6 +93,13 @@ export function ClientFilters() {
           }
         />
       </div>
+
+      {branches ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="branchId" className="text-xs">Branch</Label>
+          <SelectField id="branchId" value={values.branchId} onValueChange={(branchId) => setValues((current) => ({ ...current, branchId }))} options={[{ value: "", label: "All branches" }, ...branches.map((branch) => ({ value: branch.id, label: branch.name }))]} />
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="admissionNumber" className="text-xs">

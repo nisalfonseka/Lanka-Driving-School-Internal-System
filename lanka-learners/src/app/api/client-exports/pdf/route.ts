@@ -14,6 +14,7 @@ import {
 } from "@/lib/client-exports/service";
 import { exportWeekKey, parseExportWeekKey } from "@/lib/client-exports/weeks";
 import { getSettings } from "@/lib/settings";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +24,15 @@ export async function POST(request: NextRequest) {
   try {
     const owner = await requireOwnerAction();
     const weekStart = parseExportWeekKey(request.nextUrl.searchParams.get("week"));
+    const requestedBranchId = request.nextUrl.searchParams.get("branchId") || undefined;
+    const branchId = requestedBranchId && await prisma.branch.findFirst({ where: { id: requestedBranchId, status: "ACTIVE" }, select: { id: true } }).then((branch) => branch?.id);
+    if (requestedBranchId && !branchId) return NextResponse.json({ error: "Choose a valid branch." }, { status: 400 });
     if (!weekStart) {
       return NextResponse.json({ error: "Choose a valid Monday export week." }, { status: 400 });
     }
 
     const [stored, settings] = await Promise.all([
-      getOrCaptureWeeklyExport(weekStart, owner.id),
+      getOrCaptureWeeklyExport(weekStart, owner.id, branchId),
       getSettings(),
     ]);
     const snapshot = readStoredSnapshot(stored.snapshot);

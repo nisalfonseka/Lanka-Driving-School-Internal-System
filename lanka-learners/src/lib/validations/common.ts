@@ -50,6 +50,13 @@ export const admissionNumberSchema = z
   )
   .transform((value) => value.toUpperCase());
 
+/** Branch ids include seeded stable ids as well as generated CUIDs. */
+export const branchIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Branch is required")
+  .max(64, "Invalid branch");
+
 /**
  * True only for a day that actually exists.
  *

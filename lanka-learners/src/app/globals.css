@@ -199,8 +199,13 @@
 
 /* Printing: only the marked receipt area reaches the paper. */
 @media print {
+  html,
   body {
-    background: #fff;
+    width: 80mm !important;
+    min-width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
 
   .print\:hidden,
@@ -220,7 +225,52 @@
     border: none !important;
   }
 
+  /* XPRINTER XP-Q80B / standard 80 mm thermal roll. The printer exposes an
+     approximately 72 mm printable area, so 4 mm side padding prevents clipped
+     text. Bottom padding advances the last line clear of the auto cutter. */
+  .print-shell,
+  .receipt-print-page {
+    width: 80mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .thermal-receipt {
+    box-sizing: border-box;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    padding: 3mm 4mm 7mm !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.25;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .thermal-receipt *,
+  .thermal-receipt .text-muted-foreground {
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .thermal-receipt header,
+  .thermal-receipt section,
+  .thermal-receipt footer,
+  .thermal-amount {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .thermal-amount {
+    border: 1px solid #000 !important;
+    background: #fff !important;
+  }
+
   @page {
-    margin: 14mm;
+    size: 80mm auto;
+    margin: 0;
   }
 }

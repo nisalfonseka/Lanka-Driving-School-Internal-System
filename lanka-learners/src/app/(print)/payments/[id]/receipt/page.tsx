@@ -17,7 +17,7 @@ export default async function ReceiptPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
 
   const payment = await prisma.clientPayment.findUnique({
@@ -26,10 +26,12 @@ export default async function ReceiptPage({
       client: {
         select: {
           id: true,
+          branchId: true,
           fullName: true,
           admissionNumber: true,
           idNumber: true,
           totalAgreedFee: true,
+          branch: { select: { name: true } },
         },
       },
       createdBy: { select: { fullName: true } },
@@ -37,6 +39,7 @@ export default async function ReceiptPage({
   });
 
   if (!payment) notFound();
+  if (user.role === "EMPLOYEE" && payment.client.branchId !== user.branchId) notFound();
 
   const settings = await getSettings();
 
@@ -51,19 +54,25 @@ export default async function ReceiptPage({
   const remaining = agreedFee - totalPaid;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-4 flex items-center justify-between gap-2 print:hidden">
-        <Button
-          variant="outline"
-          render={<Link href={`/clients/${payment.client.id}`} />}
-        >
-          <ArrowLeftIcon className="size-4" />
-          Back to client
-        </Button>
-        <PrintButton />
+    <div className="receipt-print-page mx-auto w-full max-w-[80mm]">
+      <div className="mb-4 space-y-2 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            render={<Link href={`/clients/${payment.client.id}`} />}
+          >
+            <ArrowLeftIcon className="size-4" />
+            Back to client
+          </Button>
+          <PrintButton />
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          For the XPRINTER XP-Q80B, select 80 mm paper, 100% scale and disable
+          browser headers and footers.
+        </p>
       </div>
 
-      <article className="print-area rounded-lg border bg-background p-8 shadow-sm">
+      <article className="print-area thermal-receipt rounded-lg border bg-background p-5 shadow-sm">
         <header className="border-b pb-4 text-center">
           <h1 className="text-xl font-bold tracking-tight uppercase">
             {settings.businessName}
@@ -115,6 +124,10 @@ export default async function ReceiptPage({
               <dt className="text-muted-foreground">NIC</dt>
               <dd className="tabular">{payment.client.idNumber}</dd>
             </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Branch</dt>
+              <dd>{payment.client.branch.name}</dd>
+            </div>
           </dl>
         </section>
 
@@ -124,6 +137,14 @@ export default async function ReceiptPage({
               <dt className="text-muted-foreground">Payment Type</dt>
               <dd>{humanise(payment.paymentType)}</dd>
             </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Payment Method</dt>
+              <dd>
+                {payment.paymentMethod
+                  ? humanise(payment.paymentMethod)
+                  : "Not recorded"}
+              </dd>
+            </div>
             {payment.description ? (
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Description</dt>
@@ -132,7 +153,7 @@ export default async function ReceiptPage({
             ) : null}
           </dl>
 
-          <div className="mt-4 flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+          <div className="thermal-amount mt-4 flex items-center justify-between rounded-lg bg-muted px-4 py-3">
             <span className="text-sm font-medium">Amount Paid</span>
             <span className="tabular text-lg font-bold">
               {formatCurrency(payment.amount)}

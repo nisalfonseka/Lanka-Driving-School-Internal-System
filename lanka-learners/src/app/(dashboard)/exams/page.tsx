@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { branchFilterDefinition, getActiveBranches, listBranchId } from "@/lib/branches";
 import { canEditRecords } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { getClientOptions } from "@/lib/queries/clients";
@@ -45,8 +46,10 @@ export default async function ExamsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const branchId = listBranchId(user, readText(params.branchId, 64));
+  const branches = user.role === "OWNER" ? await getActiveBranches() : [];
   // Started now so it runs alongside the search instead of after it.
-  const clientsPromise = getClientOptions();
+  const clientsPromise = getClientOptions(branchId);
 
   const { rows, total, page, pageSize } = await searchExams({
     q: readText(params.q),
@@ -54,6 +57,7 @@ export default async function ExamsPage({
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
+    branchId,
     extra: { result: readEnum(params.result, RESULTS) },
   });
 
@@ -73,6 +77,7 @@ export default async function ExamsPage({
         <RecordFilters
           basePath="/exams"
           filters={[
+            ...(user.role === "OWNER" ? [branchFilterDefinition(branches)] : []),
             {
               key: "q",
               label: "Client",

@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { branchFilterDefinition, getActiveBranches, listBranchId } from "@/lib/branches";
 import { canEditRecords } from "@/lib/permissions";
 import { formatCurrency, formatDate, humanise, toNumber } from "@/lib/format";
 import { getClientOptions, getClientProfile } from "@/lib/queries/clients";
@@ -34,6 +35,7 @@ import {
 export const metadata: Metadata = { title: "Payments" };
 
 const TYPES = ["ADVANCE", "INSTALLMENT", "TRAINING_FEE", "OTHER"] as const;
+const METHODS = ["CASH", "CARD", "BANK_DEPOSIT"] as const;
 
 export default async function PaymentsPage({
   searchParams,
@@ -45,8 +47,10 @@ export default async function PaymentsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const branchId = listBranchId(user, readText(params.branchId, 64));
+  const branches = user.role === "OWNER" ? await getActiveBranches() : [];
   // Started now so it runs alongside the search instead of after it.
-  const clientsPromise = getClientOptions();
+  const clientsPromise = getClientOptions(branchId);
   const clientId = readText(params.clientId, 40);
   const focusedPromise = clientId ? getClientProfile(clientId) : null;
 
@@ -56,13 +60,22 @@ export default async function PaymentsPage({
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
-    extra: { paymentType: readEnum(params.paymentType, TYPES) },
+    branchId,
+    extra: {
+      paymentType: readEnum(params.paymentType, TYPES),
+      paymentMethod: readEnum(params.paymentMethod, METHODS),
+    },
   });
 
   const clients = await clientsPromise;
 
   // When filtered to one client, show that learner's balance alongside.
-  const focused = focusedPromise ? await focusedPromise : null;
+  const focusedCandidate = focusedPromise ? await focusedPromise : null;
+  const focused =
+    focusedCandidate &&
+    (user.role === "OWNER" || focusedCandidate.client.branchId === user.branchId)
+      ? focusedCandidate
+      : null;
 
   return (
     <>
@@ -111,6 +124,7 @@ export default async function PaymentsPage({
         <RecordFilters
           basePath="/payments"
           filters={[
+            ...(user.role === "OWNER" ? [branchFilterDefinition(branches)] : []),
             {
               key: "q",
               label: "Search",
@@ -131,6 +145,17 @@ export default async function PaymentsPage({
                 { value: "OTHER", label: "Other" },
               ],
             },
+            {
+              key: "paymentMethod",
+              label: "Method",
+              type: "select",
+              options: [
+                { value: "", label: "All methods" },
+                { value: "CASH", label: "Cash" },
+                { value: "CARD", label: "Card" },
+                { value: "BANK_DEPOSIT", label: "Bank Deposit" },
+              ],
+            },
           ]}
         />
 
@@ -148,7 +173,9 @@ export default async function PaymentsPage({
                   <TableHead>Date</TableHead>
                   <TableHead>Bill No.</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Entered By</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -176,7 +203,15 @@ export default async function PaymentsPage({
                       </span>
                     </TableCell>
 
+                    <TableCell>{payment.client.branch.name}</TableCell>
+
                     <TableCell>{humanise(payment.paymentType)}</TableCell>
+
+                    <TableCell>
+                      {payment.paymentMethod
+                        ? humanise(payment.paymentMethod)
+                        : "Not recorded"}
+                    </TableCell>
 
                     <TableCell className="tabular text-right font-medium">
                       {formatCurrency(payment.amount)}
@@ -215,6 +250,7 @@ export default async function PaymentsPage({
                               billNumber: payment.billNumber,
                               amount: toNumber(payment.amount),
                               paymentType: payment.paymentType,
+                              paymentMethod: payment.paymentMethod,
                               description: payment.description,
                             }}
                           />

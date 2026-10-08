@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertClientAccess } from "@/lib/branches";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/format";
@@ -39,6 +40,7 @@ export async function createTrainingAction(
     }
 
     const data = parsed.data;
+    if (!(await assertClientAccess(user, data.clientId))) return fail("That client no longer exists.");
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
@@ -124,6 +126,7 @@ export async function updateTrainingAction(
       },
     });
     if (!existing) return fail("That training record no longer exists.");
+    await assertClientAccess(user, existing.clientId);
 
     // Only classes being added must be active; one already on the record may
     // have been deactivated since and can stay.
@@ -215,6 +218,8 @@ export async function updateTrainingResultAction(
       },
     });
     if (!existing) return fail("That training record no longer exists.");
+
+    await assertClientAccess(user, existing.clientId);
 
     const linkByClassId = new Map(
       existing.vehicleClasses.map((link) => [link.vehicleClassId, link])

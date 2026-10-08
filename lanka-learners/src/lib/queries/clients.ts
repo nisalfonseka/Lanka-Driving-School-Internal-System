@@ -41,6 +41,7 @@ export type ClientSearchInput = {
   from?: string;
   to?: string;
   status?: "ACTIVE" | "COMPLETED";
+  branchId?: string;
   page: number;
 };
 
@@ -50,6 +51,7 @@ export type ClientSearchInput = {
  */
 export async function searchClients(input: ClientSearchInput) {
   const where: Prisma.ClientWhereInput = {};
+  if (input.branchId) where.branchId = input.branchId;
 
   if (input.q) {
     where.OR = [
@@ -96,6 +98,7 @@ export async function searchClients(input: ClientSearchInput) {
         registeredDate: true,
         status: true,
         profilePhoto: true,
+        branch: { select: { name: true, code: true } },
         vehicleClasses: {
           select: { vehicleClass: { select: { code: true } } },
         },
@@ -120,6 +123,7 @@ export async function getClientProfile(clientId: string) {
       },
       createdBy: { select: { fullName: true } },
       updatedBy: { select: { fullName: true } },
+      branch: true,
     },
     }),
     prisma.clientPayment.aggregate({
@@ -149,20 +153,11 @@ export async function getClientProfile(clientId: string) {
  * Cached across requests (every list page needs it for its Add dialog);
  * registering or editing a client expires the tag.
  */
-export const getClientOptions = cache(
-  unstable_cache(
-    async () =>
-      prisma.client.findMany({
-        orderBy: { fullName: "asc" },
-        select: {
-          id: true,
-          fullName: true,
-          admissionNumber: true,
-          idNumber: true,
-        },
-        take: 1000,
-      }),
-    ["client-options"],
-    { tags: [CACHE_TAGS.clientOptions], revalidate: 300 }
-  )
-);
+export async function getClientOptions(branchId?: string) {
+  return prisma.client.findMany({
+    where: branchId ? { branchId } : undefined,
+    orderBy: { fullName: "asc" },
+    select: { id: true, fullName: true, admissionNumber: true, idNumber: true },
+    take: 1000,
+  });
+}

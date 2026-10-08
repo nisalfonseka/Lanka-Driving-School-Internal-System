@@ -14,12 +14,15 @@ const actor = (value: { fullName: string } | null) => ({
 /** Captures every client profile and all records linked from that profile. */
 export async function captureClientSnapshot(
   weekStart: Date,
-  capturedAt: Date
+  capturedAt: Date,
+  branchId?: string
 ): Promise<WeeklyClientSnapshot> {
   const clients = await prisma.client.findMany({
+    where: branchId ? { branchId } : undefined,
     orderBy: [{ admissionNumber: "asc" }, { fullName: "asc" }],
     include: {
       createdBy: { select: { fullName: true } },
+      branch: { select: { id: true, code: true, name: true } },
       updatedBy: { select: { fullName: true } },
       vehicleClasses: {
         orderBy: { vehicleClass: { code: "asc" } },
@@ -79,6 +82,7 @@ export async function captureClientSnapshot(
 
   const serialised: ClientExportSnapshot[] = clients.map((client) => ({
     id: client.id,
+    branch: client.branch,
     idNumber: client.idNumber,
     admissionNumber: client.admissionNumber,
     profilePhoto: client.profilePhoto,
@@ -161,6 +165,7 @@ export async function captureClientSnapshot(
       billNumber: record.billNumber,
       amount: record.amount.toString(),
       paymentType: record.paymentType,
+      paymentMethod: record.paymentMethod,
       description: record.description,
       createdAt: iso(record.createdAt),
       updatedAt: iso(record.updatedAt),
@@ -169,11 +174,16 @@ export async function captureClientSnapshot(
     })),
   }));
 
+  const selectedBranch = branchId
+    ? await prisma.branch.findUnique({ where: { id: branchId }, select: { name: true } })
+    : null;
+
   return {
     version: 1,
     weekStart: weekStart.toISOString(),
     capturedAt: capturedAt.toISOString(),
+    branchId: branchId ?? null,
+    branchName: selectedBranch?.name ?? null,
     clients: serialised,
   };
 }
-

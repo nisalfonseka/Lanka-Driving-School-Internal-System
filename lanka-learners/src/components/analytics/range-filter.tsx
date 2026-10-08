@@ -22,11 +22,13 @@ export function AnalyticsRangeFilter({
   from,
   to,
   label,
+  branchId,
 }: {
   preset: AnalyticsPreset;
   from?: string;
   to?: string;
   label: string;
+  branchId?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -35,7 +37,7 @@ export function AnalyticsRangeFilter({
   const [customTo, setCustomTo] = useState(to ?? "");
 
   function navigate(params: Record<string, string>) {
-    const query = new URLSearchParams(params).toString();
+    const query = new URLSearchParams({ ...params, ...(branchId ? { branchId } : {}) }).toString();
     startTransition(() => router.push(`/analytics?${query}`));
   }
 

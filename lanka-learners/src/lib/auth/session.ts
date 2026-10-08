@@ -20,6 +20,8 @@ export type SessionUser = {
   username: string;
   email: string | null;
   role: "OWNER" | "EMPLOYEE";
+  branchId: string | null;
+  branch: { id: string; code: string; name: string } | null;
 };
 
 export class ForbiddenError extends Error {
@@ -103,6 +105,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
       role: true,
       status: true,
       tokenVersion: true,
+      branchId: true,
+      branch: { select: { id: true, code: true, name: true } },
     },
   });
 
@@ -116,6 +120,8 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
     username: user.username,
     email: user.email,
     role: user.role,
+    branchId: user.branchId,
+    branch: user.branch,
   };
 });
 

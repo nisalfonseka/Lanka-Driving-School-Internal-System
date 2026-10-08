@@ -34,10 +34,12 @@ export function readStoredSnapshot(value: Prisma.JsonValue): WeeklyClientSnapsho
  */
 export async function getOrCaptureWeeklyExport(
   weekStart: Date,
-  ownerId: string
+  ownerId: string,
+  branchId?: string
 ) {
+  const scopeKey = branchId ?? "ALL";
   const existing = await prisma.weeklyClientExport.findUnique({
-    where: { weekStart },
+    where: { weekStart_scopeKey: { weekStart, scopeKey } },
   });
   if (existing) return existing;
 
@@ -46,12 +48,14 @@ export async function getOrCaptureWeeklyExport(
   }
 
   const capturedAt = new Date();
-  const snapshot = await captureClientSnapshot(weekStart, capturedAt);
+  const snapshot = await captureClientSnapshot(weekStart, capturedAt, branchId);
 
   try {
     return await prisma.weeklyClientExport.create({
       data: {
         weekStart,
+        scopeKey,
+        branchId: branchId ?? null,
         capturedAt,
         clientCount: snapshot.clients.length,
         snapshot: snapshot as unknown as Prisma.InputJsonValue,
@@ -62,7 +66,7 @@ export async function getOrCaptureWeeklyExport(
     // Two nearly simultaneous first downloads may race. The unique week key
     // chooses the winning immutable snapshot; both responses use that winner.
     const winner = await prisma.weeklyClientExport.findUnique({
-      where: { weekStart },
+      where: { weekStart_scopeKey: { weekStart, scopeKey } },
     });
     if (winner) return winner;
     throw error;
@@ -114,4 +118,3 @@ export async function markWeeklyExportDownloaded(input: {
     },
   });
 }
-

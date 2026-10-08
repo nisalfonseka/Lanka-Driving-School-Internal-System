@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ClientForm } from "@/components/clients/client-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { requireOwnerPage } from "@/lib/auth/session";
+import { getActiveBranches } from "@/lib/branches";
 import { toDateInputValue, toNumber } from "@/lib/format";
 import { getActiveVehicleClasses, getClientProfile } from "@/lib/queries/clients";
 
@@ -19,9 +20,10 @@ export default async function EditClientPage({
   await requireOwnerPage();
 
   const { id } = await params;
-  const [profile, vehicleClasses] = await Promise.all([
+  const [profile, vehicleClasses, branches] = await Promise.all([
     getClientProfile(id),
     getActiveVehicleClasses(),
+    getActiveBranches(),
   ]);
   if (!profile) notFound();
 
@@ -38,8 +40,11 @@ export default async function EditClientPage({
         mode="edit"
         clientId={client.id}
         vehicleClasses={vehicleClasses}
+        branches={branches}
+        canChooseBranch
         defaultValues={{
           profilePhoto: client.profilePhoto ?? "",
+          branchId: client.branchId,
           fullName: client.fullName,
           idNumber: client.idNumber,
           dateOfBirth: toDateInputValue(client.dateOfBirth),

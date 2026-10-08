@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { branchFilterDefinition, getActiveBranches, listBranchId } from "@/lib/branches";
 import { canEditRecords } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { getActiveVehicleClasses, getClientOptions } from "@/lib/queries/clients";
@@ -45,8 +46,10 @@ export default async function PracticalTrainingPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const branchId = listBranchId(user, readText(params.branchId, 64));
+  const branches = user.role === "OWNER" ? await getActiveBranches() : [];
   // Started now so it runs alongside the search instead of after it.
-  const clientsPromise = getClientOptions();
+  const clientsPromise = getClientOptions(branchId);
   const vehicleClasses = await getActiveVehicleClasses();
 
   // Only accept a vehicle class id that actually exists.
@@ -62,6 +65,7 @@ export default async function PracticalTrainingPage({
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
+    branchId,
     extra: { vehicleClassId, status: readEnum(params.status, STATUSES) },
   });
 
@@ -85,6 +89,7 @@ export default async function PracticalTrainingPage({
         <RecordFilters
           basePath="/practical-training"
           filters={[
+            ...(user.role === "OWNER" ? [branchFilterDefinition(branches)] : []),
             {
               key: "q",
               label: "Client",

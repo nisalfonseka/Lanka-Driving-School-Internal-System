@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertClientAccess } from "@/lib/branches";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { formatDate, humanise } from "@/lib/format";
@@ -37,6 +38,7 @@ export async function createLectureAction(
     }
 
     const data = parsed.data;
+    if (!(await assertClientAccess(user, data.clientId))) return fail("That client no longer exists.");
     const attendanceDate = toUtcDateOnly(data.attendanceDate);
 
     const client = await prisma.client.findUnique({
@@ -107,6 +109,7 @@ export async function updateLectureAction(
       },
     });
     if (!existing) return fail("That attendance record no longer exists.");
+    await assertClientAccess(user, existing.clientId);
 
     await prisma.lectureAttendance.update({
       where: { id: data.id },
@@ -158,6 +161,8 @@ export async function updateLectureResultAction(
       },
     });
     if (!existing) return fail("That attendance record no longer exists.");
+
+    await assertClientAccess(user, existing.clientId);
 
     await prisma.lectureAttendance.update({
       where: { id: data.id },

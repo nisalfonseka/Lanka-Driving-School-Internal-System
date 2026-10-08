@@ -4,6 +4,7 @@ import { BOOKING_SLOTS } from "@/lib/booking-slots";
 
 import {
   amountSchema,
+  branchIdSchema,
   cuidSchema,
   dateStringSchema,
   optionalDateStringSchema,
@@ -166,6 +167,7 @@ export const paymentTypeEnum = z.enum([
   "TRAINING_FEE",
   "OTHER",
 ]);
+export const paymentMethodEnum = z.enum(["CASH", "CARD", "BANK_DEPOSIT"]);
 
 const paymentShape = {
   clientId: cuidSchema,
@@ -182,6 +184,7 @@ const paymentShape = {
     .transform((value) => value.toUpperCase()),
   amount: amountSchema,
   paymentType: paymentTypeEnum,
+  paymentMethod: paymentMethodEnum,
   description: optionalText(300),
 };
 
@@ -208,6 +211,7 @@ export const expenseCategoryEnum = z.enum([
 ]);
 
 const expenseShape = {
+  branchId: branchIdSchema.optional(),
   expenseDate: dateStringSchema,
   category: expenseCategoryEnum,
   amount: amountSchema,
@@ -241,6 +245,7 @@ const contactNumberSchema = z
   }, "Enter a valid phone number");
 
 const bookingShape = {
+  branchId: branchIdSchema.optional(),
   bookingDate: dateStringSchema,
   slot: bookingSlotEnum,
   name: z

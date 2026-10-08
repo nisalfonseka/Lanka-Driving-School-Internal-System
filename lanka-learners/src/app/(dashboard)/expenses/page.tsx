@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { branchFilterDefinition, getActiveBranches, listBranchId } from "@/lib/branches";
 import { canEditRecords } from "@/lib/permissions";
 import { formatCurrency, formatDate, humanise, toNumber } from "@/lib/format";
 import { searchExpenses } from "@/lib/queries/operations";
@@ -50,12 +51,16 @@ export default async function ExpensesPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const allBranches = await getActiveBranches();
+  const branchId = listBranchId(user, readText(params.branchId, 64));
+  const formBranches = user.role === "EMPLOYEE" ? allBranches.filter((branch) => branch.id === user.branchId) : allBranches;
 
   const { rows, total, totalAmount, page, pageSize } = await searchExpenses({
     q: readText(params.q),
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
+    branchId,
     extra: { category: readEnum(params.category, CATEGORIES) },
   });
 
@@ -64,7 +69,7 @@ export default async function ExpensesPage({
       <PageHeader
         title="Company Expenses"
         description="Record and review what the school spends."
-        actions={<ExpenseDialog />}
+        actions={<ExpenseDialog branches={formBranches} canChooseBranch={user.role === "OWNER"} defaultBranchId={branchId ?? allBranches[0]?.id} />}
       />
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -80,6 +85,7 @@ export default async function ExpensesPage({
         <RecordFilters
           basePath="/expenses"
           filters={[
+            ...(user.role === "OWNER" ? [branchFilterDefinition(allBranches)] : []),
             {
               key: "q",
               label: "Description",
@@ -118,6 +124,7 @@ export default async function ExpensesPage({
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Entered By</TableHead>
@@ -137,6 +144,8 @@ export default async function ExpensesPage({
                         {humanise(expense.category)}
                       </Badge>
                     </TableCell>
+
+                    <TableCell>{expense.branch.name}</TableCell>
 
                     <TableCell className="max-w-60 truncate text-muted-foreground">
                       {expense.description ?? "—"}
@@ -161,7 +170,11 @@ export default async function ExpensesPage({
                             category: expense.category,
                             amount: toNumber(expense.amount),
                             description: expense.description,
+                            branchId: expense.branchId,
                           }}
+                          branches={allBranches}
+                          canChooseBranch
+                          defaultBranchId={expense.branchId}
                         />
                       </TableCell>
                     ) : null}

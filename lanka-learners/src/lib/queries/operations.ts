@@ -12,6 +12,7 @@ export type RecordFilterInput = {
   from?: string;
   to?: string;
   page: number;
+  branchId?: string;
   extra?: Record<string, string | undefined>;
 };
 
@@ -25,6 +26,15 @@ function clientMatch(q: string | undefined): Prisma.ClientWhereInput | undefined
       { admissionNumber: { contains: q, mode: "insensitive" } },
     ],
   };
+}
+
+function scopedClient(
+  q: string | undefined,
+  branchId: string | undefined
+): Prisma.ClientWhereInput | undefined {
+  const search = clientMatch(q);
+  if (!search && !branchId) return undefined;
+  return { ...(search ?? {}), ...(branchId ? { branchId } : {}) };
 }
 
 function dateRange(from?: string, to?: string) {
@@ -41,6 +51,7 @@ const clientSelect = {
     fullName: true,
     admissionNumber: true,
     idNumber: true,
+    branch: { select: { name: true, code: true } },
   },
 } as const;
 
@@ -58,7 +69,7 @@ export function offsetFor(page: number) {
 export async function searchExams(input: RecordFilterInput) {
   const where: Prisma.WrittenExamWhereInput = {
     ...(input.clientId ? { clientId: input.clientId } : {}),
-    ...(clientMatch(input.q) ? { client: clientMatch(input.q) } : {}),
+    ...(scopedClient(input.q, input.branchId) ? { client: scopedClient(input.q, input.branchId) } : {}),
     ...(dateRange(input.from, input.to)
       ? { examDate: dateRange(input.from, input.to) }
       : {}),
@@ -84,7 +95,7 @@ export async function searchExams(input: RecordFilterInput) {
 export async function searchTrials(input: RecordFilterInput) {
   const where: Prisma.TrialExamWhereInput = {
     ...(input.clientId ? { clientId: input.clientId } : {}),
-    ...(clientMatch(input.q) ? { client: clientMatch(input.q) } : {}),
+    ...(scopedClient(input.q, input.branchId) ? { client: scopedClient(input.q, input.branchId) } : {}),
     ...(dateRange(input.from, input.to)
       ? { trialDate: dateRange(input.from, input.to) }
       : {}),
@@ -114,7 +125,7 @@ export async function searchTrials(input: RecordFilterInput) {
 export async function searchLectures(input: RecordFilterInput) {
   const where: Prisma.LectureAttendanceWhereInput = {
     ...(input.clientId ? { clientId: input.clientId } : {}),
-    ...(clientMatch(input.q) ? { client: clientMatch(input.q) } : {}),
+    ...(scopedClient(input.q, input.branchId) ? { client: scopedClient(input.q, input.branchId) } : {}),
     ...(dateRange(input.from, input.to)
       ? { attendanceDate: dateRange(input.from, input.to) }
       : {}),
@@ -162,7 +173,7 @@ export async function searchTrainings(input: RecordFilterInput) {
 
   const where: Prisma.PracticalTrainingWhereInput = {
     ...(input.clientId ? { clientId: input.clientId } : {}),
-    ...(clientMatch(input.q) ? { client: clientMatch(input.q) } : {}),
+    ...(scopedClient(input.q, input.branchId) ? { client: scopedClient(input.q, input.branchId) } : {}),
     ...(dateRange(input.from, input.to)
       ? { trainingDate: dateRange(input.from, input.to) }
       : {}),
@@ -197,6 +208,7 @@ export async function searchTrainings(input: RecordFilterInput) {
 
 export async function searchPayments(input: RecordFilterInput) {
   const where: Prisma.ClientPaymentWhereInput = {
+    ...(input.branchId ? { client: { branchId: input.branchId } } : {}),
     ...(input.clientId ? { clientId: input.clientId } : {}),
     ...(dateRange(input.from, input.to)
       ? { paymentDate: dateRange(input.from, input.to) }
@@ -205,6 +217,12 @@ export async function searchPayments(input: RecordFilterInput) {
       ? {
           paymentType: input.extra
             .paymentType as Prisma.EnumPaymentTypeFilter["equals"],
+        }
+      : {}),
+    ...(input.extra?.paymentMethod
+      ? {
+          paymentMethod: input.extra
+            .paymentMethod as Prisma.EnumPaymentMethodNullableFilter["equals"],
         }
       : {}),
   };
@@ -240,6 +258,7 @@ export async function searchPayments(input: RecordFilterInput) {
 
 export async function searchExpenses(input: RecordFilterInput) {
   const where: Prisma.CompanyExpenseWhereInput = {
+    ...(input.branchId ? { branchId: input.branchId } : {}),
     ...(dateRange(input.from, input.to)
       ? { expenseDate: dateRange(input.from, input.to) }
       : {}),
@@ -260,7 +279,7 @@ export async function searchExpenses(input: RecordFilterInput) {
       orderBy: [{ expenseDate: "desc" }, { createdAt: "desc" }],
       skip: offsetFor(input.page),
       take: RECORDS_PAGE_SIZE,
-      include: { ...enteredBy },
+      include: { branch: { select: { name: true, code: true } }, ...enteredBy },
     }),
     prisma.companyExpense.count({ where }),
     prisma.companyExpense.aggregate({ _sum: { amount: true }, where }),

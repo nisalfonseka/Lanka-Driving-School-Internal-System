@@ -36,7 +36,7 @@ export type OwnerDashboardStats = DashboardStats & {
 };
 
 const getDashboardStatsCached = unstable_cache(
-  async (): Promise<DashboardStats> => {
+  async (branchId: string | null): Promise<DashboardStats> => {
     const monthStart = startOfMonth();
     const monthEnd = startOfNextMonth();
     const todayStart = startOfToday();
@@ -54,35 +54,37 @@ const getDashboardStatsCached = unstable_cache(
       todayPayments,
       todayExpenses,
     ] = await Promise.all([
-      prisma.client.count(),
-      prisma.client.count({ where: { status: "ACTIVE" } }),
+      prisma.client.count({ where: branchId ? { branchId } : undefined }),
+      prisma.client.count({ where: { status: "ACTIVE", ...(branchId ? { branchId } : {}) } }),
       prisma.client.count({
-        where: { registeredDate: { gte: monthStart, lt: monthEnd } },
+        where: { registeredDate: { gte: monthStart, lt: monthEnd }, ...(branchId ? { branchId } : {}) },
       }),
       prisma.clientPayment.aggregate({
         _sum: { amount: true },
-        where: { paymentDate: { gte: monthStart, lt: monthEnd } },
+        where: { paymentDate: { gte: monthStart, lt: monthEnd }, ...(branchId ? { client: { branchId } } : {}) },
       }),
       prisma.companyExpense.aggregate({
         _sum: { amount: true },
-        where: { expenseDate: { gte: monthStart, lt: monthEnd } },
+        where: { expenseDate: { gte: monthStart, lt: monthEnd }, ...(branchId ? { branchId } : {}) },
       }),
       prisma.client.aggregate({
+        where: branchId ? { branchId } : undefined,
         _sum: { totalAgreedFee: true },
       }),
       prisma.clientPayment.aggregate({
+        where: branchId ? { client: { branchId } } : undefined,
         _sum: { amount: true },
       }),
       prisma.client.count({
-        where: { registeredDate: { gte: todayStart, lt: tomorrowStart } },
+        where: { registeredDate: { gte: todayStart, lt: tomorrowStart }, ...(branchId ? { branchId } : {}) },
       }),
       prisma.clientPayment.aggregate({
         _sum: { amount: true },
-        where: { paymentDate: { gte: todayStart, lt: tomorrowStart } },
+        where: { paymentDate: { gte: todayStart, lt: tomorrowStart }, ...(branchId ? { client: { branchId } } : {}) },
       }),
       prisma.companyExpense.aggregate({
         _sum: { amount: true },
-        where: { expenseDate: { gte: todayStart, lt: tomorrowStart } },
+        where: { expenseDate: { gte: todayStart, lt: tomorrowStart }, ...(branchId ? { branchId } : {}) },
       }),
     ]);
 
@@ -105,8 +107,8 @@ const getDashboardStatsCached = unstable_cache(
   { revalidate: 60, tags: [CACHE_TAGS.stats] }
 );
 
-export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
-  return getDashboardStatsCached();
+export const getDashboardStats = cache(async (branchId?: string): Promise<DashboardStats> => {
+  return getDashboardStatsCached(branchId ?? null);
 });
 
 const getOwnerDashboardStatsCached = unstable_cache(

@@ -34,9 +34,9 @@ export type AnalyticsData = {
  * range. Rows are bucketed in application code after a single indexed range
  * query per dataset, which keeps the work off the database and avoids raw SQL.
  */
-export function getAnalytics(range: ResolvedRange): Promise<AnalyticsData> {
+export function getAnalytics(range: ResolvedRange, branchId?: string): Promise<AnalyticsData> {
   // Dates don't survive the cache's JSON round trip, so pass ISO strings.
-  return getAnalyticsCached(range.start?.toISOString() ?? null, range.end.toISOString());
+  return getAnalyticsCached(range.start?.toISOString() ?? null, range.end.toISOString(), branchId ?? null);
 }
 
 /**
@@ -44,17 +44,18 @@ export function getAnalytics(range: ResolvedRange): Promise<AnalyticsData> {
  * "stats" tag, and the entry refreshes itself after five minutes regardless.
  */
 const getAnalyticsCached = unstable_cache(
-  async (startIso: string | null, endIso: string) =>
+  async (startIso: string | null, endIso: string, branchId: string | null) =>
     computeAnalytics({
       start: startIso ? new Date(startIso) : undefined,
       end: new Date(endIso),
-    }),
+    }, branchId ?? undefined),
   ["analytics"],
   { tags: [CACHE_TAGS.stats], revalidate: 300 }
 );
 
 async function computeAnalytics(
-  range: Pick<ResolvedRange, "start" | "end">
+  range: Pick<ResolvedRange, "start" | "end">,
+  branchId?: string
 ): Promise<AnalyticsData> {
   const within = {
     ...(range.start ? { gte: range.start } : {}),
@@ -71,34 +72,34 @@ async function computeAnalytics(
     vehicleClassLinks,
   ] = await Promise.all([
     prisma.client.findMany({
-      where: { registeredDate: within },
+      where: { registeredDate: within, ...(branchId ? { branchId } : {}) },
       select: { registeredDate: true },
     }),
     prisma.clientPayment.findMany({
-      where: { paymentDate: within },
+      where: { paymentDate: within, ...(branchId ? { client: { branchId } } : {}) },
       select: { paymentDate: true, amount: true },
     }),
     prisma.companyExpense.findMany({
-      where: { expenseDate: within },
+      where: { expenseDate: within, ...(branchId ? { branchId } : {}) },
       select: { expenseDate: true, amount: true },
     }),
     prisma.companyExpense.groupBy({
       by: ["category"],
-      where: { expenseDate: within },
+      where: { expenseDate: within, ...(branchId ? { branchId } : {}) },
       _sum: { amount: true },
     }),
     prisma.writtenExam.groupBy({
       by: ["result"],
-      where: { examDate: within },
+      where: { examDate: within, ...(branchId ? { client: { branchId } } : {}) },
       _count: { _all: true },
     }),
     prisma.trialExam.groupBy({
       by: ["result"],
-      where: { trialDate: within },
+      where: { trialDate: within, ...(branchId ? { client: { branchId } } : {}) },
       _count: { _all: true },
     }),
     prisma.clientVehicleClass.findMany({
-      where: { client: { registeredDate: within } },
+      where: { client: { registeredDate: within, ...(branchId ? { branchId } : {}) } },
       select: { vehicleClass: { select: { code: true } } },
     }),
   ]);

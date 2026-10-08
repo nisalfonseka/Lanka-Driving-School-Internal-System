@@ -6,7 +6,7 @@ import {
   ChevronRightIcon,
   LoaderIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ export function BookingDateFilter({
   label: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   function go(next: string) {
@@ -36,7 +37,9 @@ export function BookingDateFilter({
     // Typing a year digit by digit yields "0002", "0020"… — wait for a real one.
     const year = Number(next.slice(0, 4));
     if (year < 2000 || year > 2100) return;
-    startTransition(() => router.push(`/training-bookings?date=${next}`));
+    const query = new URLSearchParams(searchParams.toString());
+    query.set("date", next);
+    startTransition(() => router.push(`/training-bookings?${query.toString()}`));
   }
 
   return (

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertClientAccess } from "@/lib/branches";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -37,10 +38,16 @@ export async function createPaymentAction(
     }
 
     const data = parsed.data;
+    if (!(await assertClientAccess(user, data.clientId))) return fail("That client no longer exists.");
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { fullName: true, admissionNumber: true, mobileMain: true },
+      select: {
+        fullName: true,
+        admissionNumber: true,
+        mobileMain: true,
+        branch: { select: { name: true } },
+      },
     });
     if (!client) return fail("That client no longer exists.");
 
@@ -62,6 +69,7 @@ export async function createPaymentAction(
         billNumber: data.billNumber,
         amount: data.amount,
         paymentType: data.paymentType,
+        paymentMethod: data.paymentMethod,
         description: data.description ?? null,
         createdById: user.id,
       },
@@ -82,8 +90,12 @@ export async function createPaymentAction(
       recipient: client.mobileMain,
       clientName: client.fullName,
       admissionNumber: client.admissionNumber,
+      branchName: client.branch.name,
       amount: data.amount,
       billNumber: data.billNumber,
+      date: data.paymentDate,
+      paymentType: data.paymentType,
+      paymentMethod: data.paymentMethod,
       entityType: "ClientPayment",
       entityId: payment.id,
     });
@@ -142,6 +154,7 @@ export async function updatePaymentAction(
         billNumber: data.billNumber,
         amount: data.amount,
         paymentType: data.paymentType,
+        paymentMethod: data.paymentMethod,
         description: data.description ?? null,
         updatedById: user.id,
       },
@@ -158,6 +171,7 @@ export async function updatePaymentAction(
         billNumber: existing.billNumber,
         amount: existing.amount,
         paymentType: existing.paymentType,
+        paymentMethod: existing.paymentMethod,
         description: existing.description,
       },
       newData: {
@@ -165,6 +179,7 @@ export async function updatePaymentAction(
         billNumber: data.billNumber,
         amount: data.amount,
         paymentType: data.paymentType,
+        paymentMethod: data.paymentMethod,
         description: data.description,
       },
     });

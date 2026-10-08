@@ -67,7 +67,9 @@ export function SmsSettingsForm({
         </AlertTitle>
         <AlertDescription>
           The API token is kept on the server. Notifications do not block a
-          registration or other system action if Text.lk is unavailable.
+          registration or other system action if Text.lk is unavailable. Each
+          message includes the learner, admission number, branch, business
+          contact and website where available.
         </AlertDescription>
       </Alert>
 

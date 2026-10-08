@@ -12,6 +12,7 @@ export type AppSettings = {
   businessAddress: string;
   businessPhone: string;
   businessEmail: string;
+  businessWebsite: string;
   receiptFooter: string;
 };
 
@@ -21,6 +22,7 @@ const DEFAULTS: AppSettings = {
   businessAddress: "",
   businessPhone: "",
   businessEmail: "",
+  businessWebsite: "https://lankadrivingschool.com",
   receiptFooter: "Thank you. This is a computer generated receipt.",
 };
 

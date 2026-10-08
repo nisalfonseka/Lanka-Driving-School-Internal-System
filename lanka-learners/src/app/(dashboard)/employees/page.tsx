@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { requireOwnerPage } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { getActiveBranches } from "@/lib/branches";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Employee Details" };
@@ -32,7 +33,7 @@ export default async function EmployeesPage() {
 
   // `passwordHash` is deliberately absent from this projection — the hash must
   // never leave the server.
-  const users = await prisma.user.findMany({
+  const [users, branches] = await Promise.all([prisma.user.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
     select: {
       id: true,
@@ -44,15 +45,17 @@ export default async function EmployeesPage() {
       status: true,
       lastLoginAt: true,
       createdAt: true,
+      branchId: true,
+      branch: { select: { name: true, code: true } },
     },
-  });
+  }), getActiveBranches()]);
 
   return (
     <>
       <PageHeader
         title="Employee Details"
         description="Create staff accounts, manage access and reset passwords."
-        actions={<AddEmployeeDialog />}
+        actions={<AddEmployeeDialog branches={branches} />}
       />
 
       <Card className="overflow-hidden p-0">
@@ -72,6 +75,7 @@ export default async function EmployeesPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Mobile</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Created</TableHead>
@@ -111,6 +115,8 @@ export default async function EmployeesPage() {
                         <StatusBadge value={user.role} />
                       </TableCell>
 
+                      <TableCell>{user.branch ? `${user.branch.name} (${user.branch.code})` : "All branches"}</TableCell>
+
                       <TableCell>
                         <StatusBadge value={user.status} />
                       </TableCell>
@@ -146,7 +152,10 @@ export default async function EmployeesPage() {
                                   fullName: user.fullName,
                                   email: user.email,
                                   mobile: user.mobile,
+                                  role: user.role,
+                                  branchId: user.branchId,
                                 }}
+                                branches={branches}
                               />
 
                               <ResetPasswordDialog

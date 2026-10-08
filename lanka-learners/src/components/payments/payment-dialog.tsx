@@ -1,7 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderIcon, PencilIcon, PlusIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  LoaderIcon,
+  PencilIcon,
+  PlusIcon,
+  PrinterIcon,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -38,6 +45,12 @@ const TYPE_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ];
 
+const METHOD_OPTIONS = [
+  { value: "CASH", label: "Cash" },
+  { value: "CARD", label: "Card" },
+  { value: "BANK_DEPOSIT", label: "Bank Deposit" },
+];
+
 /**
  * Derived from the Zod schema rather than hand-written: `amount` arrives from
  * the input as a string and is coerced, so the form's input and output types
@@ -54,7 +67,15 @@ type ExistingPayment = {
   billNumber: string;
   amount: number;
   paymentType: "ADVANCE" | "INSTALLMENT" | "TRAINING_FEE" | "OTHER";
+  paymentMethod: "CASH" | "CARD" | "BANK_DEPOSIT" | null;
   description: string | null;
+};
+
+type CreatedPayment = {
+  id: string;
+  billNumber: string;
+  amount: number;
+  paymentMethod: "CASH" | "CARD" | "BANK_DEPOSIT";
 };
 
 export function PaymentDialog({
@@ -74,6 +95,9 @@ export function PaymentDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [createdPayment, setCreatedPayment] = useState<CreatedPayment | null>(
+    null
+  );
   const isEdit = Boolean(payment);
   const lockedClientLabel = payment?.clientLabel ?? fixedClientLabel;
 
@@ -93,6 +117,7 @@ export function PaymentDialog({
           billNumber: payment.billNumber,
           amount: payment.amount,
           paymentType: payment.paymentType,
+          paymentMethod: payment.paymentMethod ?? "CASH",
           description: payment.description ?? "",
         }
       : {
@@ -101,6 +126,7 @@ export function PaymentDialog({
           billNumber: "",
           amount: undefined,
           paymentType: "INSTALLMENT",
+          paymentMethod: "CASH",
           description: "",
         },
   });
@@ -123,9 +149,17 @@ export function PaymentDialog({
       return;
     }
 
-    toast.success(isEdit ? "Payment updated" : "Payment recorded");
-    setOpen(false);
-    if (!isEdit) reset();
+    if (isEdit) {
+      toast.success("Payment updated");
+      setOpen(false);
+    } else {
+      setCreatedPayment({
+        id: result.data.id,
+        billNumber: values.billNumber,
+        amount: values.amount,
+        paymentMethod: values.paymentMethod,
+      });
+    }
     router.refresh();
   }
 
@@ -134,7 +168,10 @@ export function PaymentDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) reset();
+        if (!next) {
+          setCreatedPayment(null);
+          reset();
+        }
       }}
     >
       <DialogTrigger
@@ -154,6 +191,64 @@ export function PaymentDialog({
       />
 
       <DialogContent className="sm:max-w-lg">
+        {createdPayment ? (
+          <>
+            <div className="flex flex-col items-center px-4 py-5 text-center">
+              <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                <CheckCircle2Icon className="size-9" aria-hidden="true" />
+              </div>
+              <DialogHeader className="items-center">
+                <DialogTitle>Payment Added Successfully</DialogTitle>
+                <DialogDescription>
+                  Bill {createdPayment.billNumber} has been recorded. You can
+                  print the receipt now.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Amount</p>
+                <p className="font-semibold tabular">
+                  LKR {createdPayment.amount.toLocaleString("en-LK", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Paid By</p>
+                <p className="font-semibold">
+                  {METHOD_OPTIONS.find(
+                    (option) => option.value === createdPayment.paymentMethod
+                  )?.label ?? createdPayment.paymentMethod}
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
+                Done
+              </Button>
+              <Button
+                render={
+                  <Link
+                    href={`/payments/${createdPayment.id}/receipt`}
+                    target="_blank"
+                  />
+                }
+              >
+                <PrinterIcon className="size-4" />
+                Print Receipt
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Correct Payment" : "Add Payment"}
@@ -258,6 +353,24 @@ export function PaymentDialog({
                 )}
               />
             </Field>
+
+            <Field
+              label="Payment Method"
+              required
+              error={errors.paymentMethod?.message}
+            >
+              <Controller
+                control={control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <SelectField
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    options={METHOD_OPTIONS}
+                  />
+                )}
+              />
+            </Field>
           </div>
 
           <Field
@@ -291,6 +404,8 @@ export function PaymentDialog({
             )}
           </Button>
         </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

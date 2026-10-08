@@ -2,6 +2,7 @@ import { CoffeeIcon, PhoneIcon, UtensilsIcon } from "lucide-react";
 import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { BranchSelectFilter } from "@/components/branches/branch-select-filter";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { BookingDateFilter } from "@/components/training-bookings/booking-date-filter";
@@ -17,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { getActiveBranches, listBranchId } from "@/lib/branches";
 import {
   SEATS_PER_SLOT,
   TIMETABLE,
@@ -51,10 +53,15 @@ export default async function TrainingBookingsPage({
   const canEditDetails = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const allBranches = await getActiveBranches();
+  const requestedBranchId = params.branchId && allBranches.some((branch) => branch.id === params.branchId) ? params.branchId : undefined;
+  const branchId = listBranchId(user, requestedBranchId) ?? allBranches[0]?.id;
+  if (!branchId) throw new Error("At least one active branch is required.");
+  const formBranches = user.role === "EMPLOYEE" ? allBranches.filter((branch) => branch.id === user.branchId) : allBranches;
   const today = sriLankaToday().toISOString().slice(0, 10);
   const date = readDate(params.date) ?? today;
 
-  const bookings = await getBookingsForDay(date);
+  const bookings = await getBookingsForDay(date, branchId);
 
   const bySlot = new Map<BookingSlot, (Booking | undefined)[]>();
   for (const booking of bookings) {
@@ -72,8 +79,10 @@ export default async function TrainingBookingsPage({
       <PageHeader
         title="Training Booking"
         description="Daily timetable of training slots. Each slot takes up to two people."
-        actions={<BookingDialog defaultDate={date} />}
+        actions={<BookingDialog defaultDate={date} branchId={branchId} branches={formBranches} canChooseBranch={user.role === "OWNER"} />}
       />
+
+      {user.role === "OWNER" ? <BranchSelectFilter branches={allBranches} value={branchId} allowAll={false} /> : null}
 
       <section className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
@@ -202,6 +211,9 @@ export default async function TrainingBookingsPage({
                                 defaultDate={date}
                                 defaultSlot={row.slot}
                                 variant="slot"
+                                branchId={branchId}
+                                branches={formBranches}
+                                canChooseBranch={user.role === "OWNER"}
                               />
                             </div>
                           )}

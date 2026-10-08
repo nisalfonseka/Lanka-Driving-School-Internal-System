@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   admissionNumberSchema,
   amountSchema,
+  branchIdSchema,
   cuidSchema,
   dateStringSchema,
   mobileSchema,
@@ -50,6 +51,7 @@ export const clientFormSchema = z
     mobileWhatsapp: optionalMobileSchema,
 
     // Registration
+    branchId: branchIdSchema.optional(),
     admissionNumber: admissionNumberSchema,
     registeredDate: dateStringSchema,
     scheduleType: scheduleTypeEnum,
@@ -137,6 +139,7 @@ export const clientSearchSchema = z.object({
   from: optionalDateStringSchema,
   to: optionalDateStringSchema,
   status: clientStatusEnum.optional(),
+  branchId: branchIdSchema.optional(),
   page: z.coerce.number().int().min(1).default(1),
 });
 

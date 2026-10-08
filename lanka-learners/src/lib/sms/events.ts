@@ -2,17 +2,17 @@ export const SMS_EVENT_DEFINITIONS = [
   {
     key: "CLIENT_REGISTERED",
     label: "Client registered",
-    description: "Welcome message with the client's admission number.",
+    description: "Welcome message with admission number, branch and contact details.",
   },
   {
     key: "PAYMENT_RECEIVED",
     label: "Payment received",
-    description: "Payment amount and bill number confirmation.",
+    description: "Payment amount, date, method and bill number confirmation.",
   },
   {
     key: "WRITTEN_EXAM_SCHEDULED",
     label: "Written exam scheduled",
-    description: "Written exam date notification.",
+    description: "Written exam date, admission number and arrival reminder.",
   },
   {
     key: "WRITTEN_EXAM_RESULT",
@@ -22,7 +22,7 @@ export const SMS_EVENT_DEFINITIONS = [
   {
     key: "PRACTICAL_TRIAL_SCHEDULED",
     label: "Practical trial scheduled",
-    description: "Trial date and vehicle classes notification.",
+    description: "Trial date, vehicle classes and arrival reminder.",
   },
   {
     key: "PRACTICAL_TRIAL_RESULT",

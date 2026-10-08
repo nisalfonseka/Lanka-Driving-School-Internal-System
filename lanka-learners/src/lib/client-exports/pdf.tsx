@@ -249,6 +249,7 @@ function ClientPage({
           </Section>
 
           <Section title="Registration and licence">
+            <Field label="Branch" value={client.branch?.name ?? snapshot.branchName} />
             <Field label="Admission number" value={client.admissionNumber} />
             <Field label="Registered date" value={exportDate(client.registeredDate)} />
             <Field label="Training type" value={exportEnum(client.scheduleType)} />

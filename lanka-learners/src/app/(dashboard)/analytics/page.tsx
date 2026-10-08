@@ -8,6 +8,7 @@ import {
   VehicleClassChart,
 } from "@/components/analytics/lazy-charts";
 import { AnalyticsRangeFilter } from "@/components/analytics/range-filter";
+import { BranchSelectFilter } from "@/components/branches/branch-select-filter";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { resolveAnalyticsRange } from "@/lib/analytics-range";
 import { requireOwnerPage } from "@/lib/auth/session";
+import { getActiveBranches } from "@/lib/branches";
 import { formatCurrency } from "@/lib/format";
 import { getAnalytics } from "@/lib/queries/analytics";
 import { flattenSearchParams, readDate } from "@/lib/search-params";
@@ -37,11 +39,13 @@ export default async function AnalyticsPage({
   await requireOwnerPage();
 
   const params = flattenSearchParams(await searchParams);
+  const branches = await getActiveBranches();
+  const branchId = params.branchId && branches.some((branch) => branch.id === params.branchId) ? params.branchId : undefined;
   const from = readDate(params.from);
   const to = readDate(params.to);
   const range = resolveAnalyticsRange({ range: params.range, from, to });
 
-  const analytics = await getAnalytics(range);
+  const analytics = await getAnalytics(range, branchId);
   const per = BUCKET_WORD[analytics.granularity];
 
   const hasExams = analytics.examStats.some((row) => row.count > 0);
@@ -61,7 +65,10 @@ export default async function AnalyticsPage({
         from={from}
         to={to}
         label={range.label}
+        branchId={branchId}
       />
+
+      <BranchSelectFilter branches={branches} value={branchId} />
 
       <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

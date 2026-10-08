@@ -70,6 +70,7 @@ export default async function ClientProfilePage({
     getActiveVehicleClasses(),
   ]);
   if (!profile) notFound();
+  if (user.role === "EMPLOYEE" && profile.client.branchId !== user.branchId) notFound();
 
   const { client, finance } = profile;
   // Add dialogs opened from the profile are locked to this client.
@@ -132,6 +133,9 @@ export default async function ClientProfilePage({
                 </span>
                 <span className="rounded-full bg-muted px-3 py-1.5 tabular text-muted-foreground">
                   NIC · {client.idNumber}
+                </span>
+                <span className="rounded-full bg-muted px-3 py-1.5 text-muted-foreground">
+                  Branch · {client.branch.name}
                 </span>
               </div>
             </div>
@@ -197,7 +201,7 @@ export default async function ClientProfilePage({
                       <p className="mt-0.5 text-xs text-muted-foreground">Identity and contact information.</p>
                     </div>
                   </div>
-                  <DetailList
+            <DetailList
                     items={[
                       { label: "Full Name", value: client.fullName },
                       { label: "NIC / ID", value: client.idNumber },
@@ -226,6 +230,7 @@ export default async function ClientProfilePage({
                   <DetailList
                     items={[
                       { label: "Admission Number", value: client.admissionNumber },
+                      { label: "Branch", value: `${client.branch.name} (${client.branch.code})` },
                       { label: "Registered Date", value: formatDate(client.registeredDate) },
                       { label: "Training Type", value: humanise(client.scheduleType) },
                       {
@@ -764,6 +769,7 @@ export default async function ClientProfilePage({
                       <TableHead>Date</TableHead>
                       <TableHead>Bill No.</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Method</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Entered By</TableHead>
                       <TableHead className="text-right">Receipt</TableHead>
@@ -777,6 +783,11 @@ export default async function ClientProfilePage({
                           {payment.billNumber}
                         </TableCell>
                         <TableCell>{humanise(payment.paymentType)}</TableCell>
+                        <TableCell>
+                          {payment.paymentMethod
+                            ? humanise(payment.paymentMethod)
+                            : "Not recorded"}
+                        </TableCell>
                         <TableCell className="tabular text-right font-medium">
                           {formatCurrency(payment.amount)}
                         </TableCell>

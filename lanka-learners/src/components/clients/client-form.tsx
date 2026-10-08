@@ -5,7 +5,7 @@ import { LoaderIcon, UserIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -30,6 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { compressImage } from "@/lib/compress-image";
 import { calculateAge } from "@/lib/format";
+import type { BranchOption } from "@/lib/branches";
 import {
   clientFormSchema,
   type ClientFormInput,
@@ -58,11 +59,15 @@ export function ClientForm({
   mode,
   clientId,
   defaultValues,
+  branches,
+  canChooseBranch,
 }: {
   vehicleClasses: VehicleClassOption[];
   mode: "create" | "edit";
   clientId?: string;
   defaultValues?: Partial<ClientFormInput>;
+  branches: BranchOption[];
+  canChooseBranch: boolean;
 }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
@@ -72,6 +77,7 @@ export function ClientForm({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
       profilePhoto: "",
+      branchId: branches[0]?.id,
       fullName: "",
       idNumber: "",
       dateOfBirth: "",
@@ -103,15 +109,21 @@ export function ClientForm({
     register,
     control,
     handleSubmit,
-    watch,
     setValue,
     setError,
     formState: { errors, isSubmitting },
   } = form;
 
-  const dateOfBirth = watch("dateOfBirth");
-  const hasPreviousLicense = watch("hasPreviousLicense");
-  const profilePhoto = watch("profilePhoto");
+  const [dateOfBirth, hasPreviousLicense, profilePhoto, selectedBranchId] =
+    useWatch({
+      control,
+      name: [
+        "dateOfBirth",
+        "hasPreviousLicense",
+        "profilePhoto",
+        "branchId",
+      ],
+    });
   const age = calculateAge(dateOfBirth || null);
 
   async function uploadPhoto(original: File) {
@@ -386,6 +398,23 @@ export function ClientForm({
             description="Admission details, training type and agreed fee."
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Branch" required error={errors.branchId?.message}>
+                {canChooseBranch ? (
+                  <Controller control={control} name="branchId" render={({ field }) => (
+                    <SelectField value={field.value ?? ""} onValueChange={field.onChange} options={branches.map((branch) => ({ value: branch.id, label: `${branch.name} (${branch.code})` }))} />
+                  )} />
+                ) : (
+                  <Input
+                    readOnly
+                    className="bg-muted"
+                    value={
+                      branches.find(
+                        (branch) => branch.id === selectedBranchId
+                      )?.name ?? "Assigned branch"
+                    }
+                  />
+                )}
+              </Field>
               <Field
                 label="Admission Number"
                 htmlFor="admissionNumber"

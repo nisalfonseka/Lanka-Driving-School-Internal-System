@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { BranchDialog } from "@/components/settings/branch-dialog";
 import { SmsSettingsForm } from "@/components/settings/sms-settings-form";
 import { VehicleClassDialog } from "@/components/settings/vehicle-class-dialog";
 import {
@@ -23,6 +24,7 @@ import {
 import { requireOwnerPage } from "@/lib/auth/session";
 import { getAllVehicleClasses } from "@/lib/queries/clients";
 import { getSettings } from "@/lib/settings";
+import { getAllBranches } from "@/lib/branches";
 import { getSmsSettings } from "@/lib/sms/settings";
 
 export const metadata: Metadata = { title: "System Settings" };
@@ -30,10 +32,11 @@ export const metadata: Metadata = { title: "System Settings" };
 export default async function SettingsPage() {
   await requireOwnerPage();
 
-  const [settings, smsSettings, vehicleClasses] = await Promise.all([
+  const [settings, smsSettings, vehicleClasses, branches] = await Promise.all([
     getSettings(),
     getSmsSettings(),
     getAllVehicleClasses(),
+    getAllBranches(),
   ]);
 
   return (
@@ -53,6 +56,31 @@ export default async function SettingsPage() {
         <CardContent>
           <SettingsForm defaults={settings} />
         </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b p-4">
+          <div>
+            <h2 className="text-sm font-semibold">Branches</h2>
+            <p className="text-xs text-muted-foreground">Assign employees and operational data to a location.</p>
+          </div>
+          <BranchDialog />
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader><TableRow><TableHead>Code</TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {branches.map((branch) => (
+                <TableRow key={branch.id}>
+                  <TableCell className="font-medium">{branch.code}</TableCell>
+                  <TableCell>{branch.name}</TableCell>
+                  <TableCell><StatusBadge value={branch.status} /></TableCell>
+                  <TableCell className="text-right"><BranchDialog branch={{ id: branch.id, code: branch.code, name: branch.name, status: branch.status }} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <Card>

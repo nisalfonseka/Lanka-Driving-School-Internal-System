@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertClientAccess } from "@/lib/branches";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -35,6 +36,7 @@ export async function createExamAction(
     }
 
     const data = parsed.data;
+    if (!(await assertClientAccess(user, data.clientId))) return fail("That client no longer exists.");
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
@@ -43,6 +45,7 @@ export async function createExamAction(
         fullName: true,
         admissionNumber: true,
         mobileMain: true,
+        branch: { select: { name: true } },
       },
     });
     if (!client) return fail("That client no longer exists.");
@@ -76,6 +79,7 @@ export async function createExamAction(
       recipient: client.mobileMain,
       clientName: client.fullName,
       admissionNumber: client.admissionNumber,
+      branchName: client.branch.name,
       date: data.examDate,
       entityType: "WrittenExam",
       entityId: exam.id,
@@ -110,6 +114,7 @@ export async function updateExamAction(
       },
     });
     if (!existing) return fail("That exam record no longer exists.");
+    await assertClientAccess(user, existing.clientId);
 
     await prisma.writtenExam.update({
       where: { id: data.id },
@@ -171,11 +176,14 @@ export async function updateExamResultAction(
             fullName: true,
             admissionNumber: true,
             mobileMain: true,
+            branch: { select: { name: true } },
           },
         },
       },
     });
     if (!existing) return fail("That exam record no longer exists.");
+
+    await assertClientAccess(user, existing.clientId);
 
     await prisma.writtenExam.update({
       where: { id: data.id },
@@ -201,6 +209,7 @@ export async function updateExamResultAction(
         recipient: existing.client.mobileMain,
         clientName: existing.client.fullName,
         admissionNumber: existing.client.admissionNumber,
+        branchName: existing.client.branch.name,
         result: data.result,
         entityType: "WrittenExam",
         entityId: data.id,

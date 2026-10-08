@@ -61,6 +61,8 @@ export type ExportPayment = {
   billNumber: string;
   amount: string;
   paymentType: string;
+  /** Optional so immutable snapshots captured before this field remain readable. */
+  paymentMethod?: string | null;
   description: string | null;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +72,7 @@ export type ExportPayment = {
 
 export type ClientExportSnapshot = {
   id: string;
+  branch?: { id: string; code: string; name: string };
   idNumber: string;
   admissionNumber: string;
   profilePhoto: string | null;
@@ -112,8 +115,9 @@ export type WeeklyClientSnapshot = {
   version: 1;
   weekStart: string;
   capturedAt: string;
+  branchId?: string | null;
+  branchName?: string | null;
   clients: ClientExportSnapshot[];
 };
 
 export type ExportFormat = "pdf" | "csv";
-

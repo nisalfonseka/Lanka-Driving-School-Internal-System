@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -22,6 +22,7 @@ import {
   updateEmployeeAction,
 } from "@/actions/employees";
 import { Field } from "@/components/forms/field";
+import { SelectField } from "@/components/forms/select-field";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import type { BranchOption } from "@/lib/branches";
 import {
   employeeCreateSchema,
   employeeUpdateSchema,
@@ -55,13 +57,13 @@ function applyFieldErrors<T extends Record<string, unknown>>(
 
 // ---------------------------------------------------------------------------
 
-export function AddEmployeeDialog() {
+export function AddEmployeeDialog({ branches }: { branches: BranchOption[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
-    register,
+    register, control,
     handleSubmit,
     reset,
     setError,
@@ -74,6 +76,7 @@ export function AddEmployeeDialog() {
       email: "",
       mobile: "",
       password: "",
+      branchId: branches[0]?.id ?? "",
     },
   });
 
@@ -196,6 +199,12 @@ export function AddEmployeeDialog() {
               </button>
             </div>
           </Field>
+
+          <Field label="Branch" required error={errors.branchId?.message}>
+            <Controller control={control} name="branchId" render={({ field }) => (
+              <SelectField value={field.value} onValueChange={field.onChange} options={branches.map((branch) => ({ value: branch.id, label: `${branch.name} (${branch.code})` }))} />
+            )} />
+          </Field>
         </form>
 
         <DialogFooter>
@@ -227,19 +236,23 @@ export function AddEmployeeDialog() {
 
 export function EditEmployeeDialog({
   employee,
+  branches,
 }: {
   employee: {
     id: string;
     fullName: string;
     email: string | null;
     mobile: string | null;
+    role: "OWNER" | "EMPLOYEE";
+    branchId: string | null;
   };
+  branches: BranchOption[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const {
-    register,
+    register, control,
     handleSubmit,
     reset,
     setError,
@@ -251,6 +264,7 @@ export function EditEmployeeDialog({
       fullName: employee.fullName,
       email: employee.email ?? "",
       mobile: employee.mobile ?? "",
+      branchId: employee.branchId ?? undefined,
     },
   });
 
@@ -335,6 +349,13 @@ export function EditEmployeeDialog({
               {...register("mobile")}
             />
           </Field>
+          {employee.role === "EMPLOYEE" ? (
+            <Field label="Branch" required error={errors.branchId?.message}>
+              <Controller control={control} name="branchId" render={({ field }) => (
+                <SelectField value={field.value ?? ""} onValueChange={field.onChange} options={branches.map((branch) => ({ value: branch.id, label: `${branch.name} (${branch.code})` }))} />
+              )} />
+            </Field>
+          ) : null}
         </form>
 
         <DialogFooter>

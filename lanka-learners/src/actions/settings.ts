@@ -9,6 +9,8 @@ import { CACHE_TAGS } from "@/lib/cache-tags";
 import { prisma } from "@/lib/db";
 import { smsSettingsRows } from "@/lib/sms/settings";
 import {
+  branchCreateSchema,
+  branchUpdateSchema,
   settingsSchema,
   smsSettingsSchema,
   vehicleClassCreateSchema,
@@ -18,6 +20,93 @@ import {
 import { expireCache, zodFieldErrors } from "./_shared";
 
 /** Vehicle classes and business settings — owner only. */
+
+export async function createBranchAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const owner = await requireOwnerAction();
+    const parsed = branchCreateSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail("Please correct the highlighted fields.", zodFieldErrors(parsed.error));
+    }
+
+    const data = parsed.data;
+    const clash = await prisma.branch.findFirst({
+      where: { OR: [{ code: data.code }, { name: { equals: data.name, mode: "insensitive" } }] },
+      select: { code: true, name: true },
+    });
+    if (clash) {
+      return fail("A branch with this code or name already exists.");
+    }
+
+    const branch = await prisma.branch.create({ data, select: { id: true } });
+    await writeAuditLog({
+      userId: owner.id,
+      action: "CREATE_BRANCH",
+      entityType: "Branch",
+      entityId: branch.id,
+      description: `Added branch ${data.name} (${data.code})`,
+      newData: data,
+    });
+    revalidatePath("/settings");
+    revalidatePath("/employees");
+    expireCache(CACHE_TAGS.branches);
+    return ok({ id: branch.id });
+  });
+}
+
+export async function updateBranchAction(
+  payload: unknown
+): Promise<ActionResult<{ id: string }>> {
+  return runAction(async () => {
+    const owner = await requireOwnerAction();
+    const parsed = branchUpdateSchema.safeParse(payload);
+    if (!parsed.success) {
+      return fail("Please correct the highlighted fields.", zodFieldErrors(parsed.error));
+    }
+
+    const data = parsed.data;
+    const existing = await prisma.branch.findUnique({ where: { id: data.id } });
+    if (!existing) return fail("That branch no longer exists.");
+
+    if (data.status === "INACTIVE") {
+      const activeEmployees = await prisma.user.count({
+        where: { branchId: data.id, role: "EMPLOYEE", status: "ACTIVE" },
+      });
+      if (activeEmployees > 0) {
+        return fail("Move or deactivate the active employees in this branch first.");
+      }
+    }
+
+    const clash = await prisma.branch.findFirst({
+      where: {
+        id: { not: data.id },
+        OR: [{ code: data.code }, { name: { equals: data.name, mode: "insensitive" } }],
+      },
+      select: { id: true },
+    });
+    if (clash) return fail("A branch with this code or name already exists.");
+
+    await prisma.branch.update({
+      where: { id: data.id },
+      data: { code: data.code, name: data.name, status: data.status },
+    });
+    await writeAuditLog({
+      userId: owner.id,
+      action: "UPDATE_BRANCH",
+      entityType: "Branch",
+      entityId: data.id,
+      description: `Updated branch ${data.name} (${data.code})`,
+      oldData: { code: existing.code, name: existing.name, status: existing.status },
+      newData: { code: data.code, name: data.name, status: data.status },
+    });
+    revalidatePath("/settings");
+    revalidatePath("/employees");
+    expireCache(CACHE_TAGS.branches);
+    return ok({ id: data.id });
+  });
+}
 
 export async function createVehicleClassAction(
   payload: unknown

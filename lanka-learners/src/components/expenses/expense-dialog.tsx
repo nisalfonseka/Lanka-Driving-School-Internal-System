@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toDateInputValue } from "@/lib/format";
+import type { BranchOption } from "@/lib/branches";
 import { expenseCreateSchema } from "@/lib/validations/operations";
 
 import type { z } from "zod";
@@ -48,9 +49,10 @@ type ExistingExpense = {
   category: Category;
   amount: number;
   description: string | null;
+  branchId: string;
 };
 
-export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
+export function ExpenseDialog({ expense, branches, canChooseBranch, defaultBranchId }: { expense?: ExistingExpense; branches: BranchOption[]; canChooseBranch: boolean; defaultBranchId?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isEdit = Boolean(expense);
@@ -67,12 +69,14 @@ export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
     defaultValues: expense
       ? {
           expenseDate: toDateInputValue(expense.expenseDate),
+          branchId: expense.branchId,
           category: expense.category,
           amount: expense.amount,
           description: expense.description ?? "",
         }
       : {
           expenseDate: new Date().toISOString().slice(0, 10),
+          branchId: defaultBranchId ?? branches[0]?.id,
           category: "OFFICE_ACCESSORIES",
           amount: undefined,
           description: "",
@@ -143,6 +147,13 @@ export function ExpenseDialog({ expense }: { expense?: ExistingExpense }) {
           className="space-y-4"
           noValidate
         >
+          <Field label="Branch" required error={errors.branchId?.message}>
+            {canChooseBranch ? (
+              <Controller control={control} name="branchId" render={({ field }) => <SelectField value={field.value ?? ""} onValueChange={field.onChange} options={branches.map((branch) => ({ value: branch.id, label: `${branch.name} (${branch.code})` }))} />} />
+            ) : (
+              <Input readOnly className="bg-muted" value={branches.find((branch) => branch.id === defaultBranchId)?.name ?? "Assigned branch"} />
+            )}
+          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="Expense Date"

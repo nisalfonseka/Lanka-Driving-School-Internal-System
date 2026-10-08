@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertBranchAccess, createBranchId } from "@/lib/branches";
 import {
   BOOKING_SLOTS,
   SEATS_PER_SLOT,
@@ -39,12 +40,14 @@ function isUniqueViolation(error: unknown): boolean {
 async function freeSeat(
   bookingDate: Date,
   slot: BookingSlot,
+  branchId: string,
   ignoreId?: string
 ): Promise<number | null> {
   const taken = await prisma.trainingBooking.findMany({
     where: {
       bookingDate,
       slot,
+      branchId,
       ...(ignoreId ? { id: { not: ignoreId } } : {}),
     },
     select: { seat: true },
@@ -58,17 +61,19 @@ async function freeSeat(
 
 /** Seats left per slot for a day — drives the slot picker in the add dialog. */
 export async function getSlotAvailabilityAction(
-  date: string
+  date: string,
+  requestedBranchId?: string
 ): Promise<ActionResult<Record<BookingSlot, number>>> {
   return runAction(async () => {
-    await requireUserAction();
+    const user = await requireUserAction();
+    const branchId = await createBranchId(user, requestedBranchId);
 
     const day = readDate(date);
     if (!day) return fail("Enter a valid date.");
 
     const groups = await prisma.trainingBooking.groupBy({
       by: ["slot"],
-      where: { bookingDate: toUtcDateOnly(day) },
+      where: { bookingDate: toUtcDateOnly(day), branchId },
       _count: { _all: true },
     });
     const counts = new Map(groups.map((row) => [row.slot, row._count._all]));
@@ -99,15 +104,17 @@ export async function createBookingAction(
     }
 
     const data = parsed.data;
+    const branchId = await createBranchId(user, data.branchId);
     const bookingDate = toUtcDateOnly(data.bookingDate);
 
-    const seat = await freeSeat(bookingDate, data.slot);
+    const seat = await freeSeat(bookingDate, data.slot, branchId);
     if (seat === null) return fail(SLOT_FULL, { slot: [SLOT_FULL] });
 
     let bookingId: string;
     try {
       const booking = await prisma.trainingBooking.create({
         data: {
+          branchId,
           bookingDate,
           slot: data.slot,
           seat,
@@ -172,7 +179,7 @@ export async function updateBookingAction(
       existing.slot !== data.slot ||
       existing.bookingDate.getTime() !== bookingDate.getTime();
     const seat = moved
-      ? await freeSeat(bookingDate, data.slot, data.id)
+      ? await freeSeat(bookingDate, data.slot, existing.branchId, data.id)
       : existing.seat;
     if (seat === null) return fail(SLOT_FULL, { slot: [SLOT_FULL] });
 
@@ -243,6 +250,7 @@ export async function updateBookingAttendanceAction(
       where: { id: data.id },
     });
     if (!existing) return fail("That booking no longer exists.");
+    assertBranchAccess(user, existing.branchId);
 
     await prisma.trainingBooking.update({
       where: { id: data.id },

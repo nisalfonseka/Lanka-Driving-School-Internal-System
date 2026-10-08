@@ -41,6 +41,12 @@ export async function createEmployeeAction(
 
     const data = parsed.data;
 
+    const branch = await prisma.branch.findFirst({
+      where: { id: data.branchId, status: "ACTIVE" },
+      select: { id: true, name: true },
+    });
+    if (!branch) return fail("Choose an active branch.", { branchId: ["Choose an active branch"] });
+
     const existing = await prisma.user.findUnique({
       where: { username: data.username },
       select: { id: true },
@@ -61,6 +67,7 @@ export async function createEmployeeAction(
         // The role is fixed here — the UI cannot mint another owner.
         role: "EMPLOYEE",
         status: "ACTIVE",
+        branchId: branch.id,
       },
       select: { id: true, fullName: true, username: true },
     });
@@ -78,6 +85,8 @@ export async function createEmployeeAction(
         email: data.email ?? null,
         mobile: data.mobile ?? null,
         role: "EMPLOYEE",
+        branchId: branch.id,
+        branch: branch.name,
       },
     });
 
@@ -109,12 +118,23 @@ export async function updateEmployeeAction(
       return fail("Another owner account cannot be modified here.");
     }
 
+    let branch: { id: string; name: string } | null = null;
+    if (existing.role === "EMPLOYEE") {
+      if (!data.branchId) return fail("Choose an active branch.", { branchId: ["Choose an active branch"] });
+      branch = await prisma.branch.findFirst({
+        where: { id: data.branchId, status: "ACTIVE" },
+        select: { id: true, name: true },
+      });
+      if (!branch) return fail("Choose an active branch.", { branchId: ["Choose an active branch"] });
+    }
+
     await prisma.user.update({
       where: { id: data.id },
       data: {
         fullName: data.fullName,
         email: data.email ?? null,
         mobile: data.mobile ?? null,
+        ...(existing.role === "EMPLOYEE" ? { branchId: branch!.id } : {}),
       },
     });
 
@@ -128,11 +148,13 @@ export async function updateEmployeeAction(
         fullName: existing.fullName,
         email: existing.email,
         mobile: existing.mobile,
+        branchId: existing.branchId,
       },
       newData: {
         fullName: data.fullName,
         email: data.email ?? null,
         mobile: data.mobile ?? null,
+        ...(branch ? { branchId: branch.id, branch: branch.name } : {}),
       },
     });
 

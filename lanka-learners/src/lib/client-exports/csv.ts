@@ -9,6 +9,7 @@ const COLUMNS = [
   "snapshot_week_start",
   "snapshot_captured_at",
   "client_id",
+  "branch",
   "admission_number",
   "full_name",
   "nic_id_number",
@@ -66,6 +67,7 @@ export function renderWeeklyClientCsv(snapshot: WeeklyClientSnapshot): string {
       snapshot.weekStart.slice(0, 10),
       snapshot.capturedAt,
       client.id,
+      client.branch?.name ?? snapshot.branchName ?? "",
       client.admissionNumber,
       client.fullName,
       client.idNumber,
@@ -112,4 +114,3 @@ export function renderWeeklyClientCsv(snapshot: WeeklyClientSnapshot): string {
   // UTF-8 BOM makes Sinhala content open correctly in Microsoft Excel.
   return `\uFEFF${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
-

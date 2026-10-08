@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { branchFilterDefinition, getActiveBranches, listBranchId } from "@/lib/branches";
 import { canEditRecords } from "@/lib/permissions";
 import { formatDate } from "@/lib/format";
 import { getActiveVehicleClasses, getClientOptions } from "@/lib/queries/clients";
@@ -46,8 +47,10 @@ export default async function TrialsPage({
   const canEdit = canEditRecords(user.role);
 
   const params = flattenSearchParams(await searchParams);
+  const branchId = listBranchId(user, readText(params.branchId, 64));
+  const branches = user.role === "OWNER" ? await getActiveBranches() : [];
   // Started now so it runs alongside the search instead of after it.
-  const clientsPromise = getClientOptions();
+  const clientsPromise = getClientOptions(branchId);
   const vehicleClasses = await getActiveVehicleClasses();
 
   const { rows, total, page, pageSize } = await searchTrials({
@@ -56,6 +59,7 @@ export default async function TrialsPage({
     from: readDate(params.from),
     to: readDate(params.to),
     page: readPage(params.page),
+    branchId,
     extra: { result: readEnum(params.result, RESULTS) },
   });
 
@@ -79,6 +83,7 @@ export default async function TrialsPage({
         <RecordFilters
           basePath="/trials"
           filters={[
+            ...(user.role === "OWNER" ? [branchFilterDefinition(branches)] : []),
             {
               key: "q",
               label: "Client",

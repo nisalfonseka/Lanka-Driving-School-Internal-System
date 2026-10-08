@@ -8,6 +8,7 @@ import {
 import type { Metadata } from "next";
 
 import { ExportDownloadButton } from "@/components/client-exports/export-download-button";
+import { BranchSelectFilter } from "@/components/branches/branch-select-filter";
 import { PageHeader } from "@/components/shared/page-header";
 import { Pagination } from "@/components/shared/pagination";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
 } from "@/lib/client-exports/weeks";
 import { prisma } from "@/lib/db";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { getActiveBranches } from "@/lib/branches";
 
 export const metadata: Metadata = { title: "Client Exports" };
 
@@ -48,11 +50,15 @@ export default async function ClientExportsPage({
   await requireOwnerPage();
 
   const params = await searchParams;
+  const branches = await getActiveBranches();
+  const rawBranchId = Array.isArray(params.branchId) ? params.branchId[0] : params.branchId;
+  const branchId = rawBranchId && branches.some((branch) => branch.id === rawBranchId) ? rawBranchId : undefined;
+  const scopeKey = branchId ?? "ALL";
   const requestedPage = readPage(params.page);
   const currentWeek = currentExportWeekStart();
   const [oldestClient, oldestExport] = await Promise.all([
-    prisma.client.aggregate({ _min: { registeredDate: true } }),
-    prisma.weeklyClientExport.aggregate({ _min: { weekStart: true } }),
+    prisma.client.aggregate({ where: branchId ? { branchId } : undefined, _min: { registeredDate: true } }),
+    prisma.weeklyClientExport.aggregate({ where: { scopeKey }, _min: { weekStart: true } }),
   ]);
   const oldestCandidate = oldestClient._min.registeredDate
     ? exportWeekStart(oldestClient._min.registeredDate)
@@ -68,7 +74,7 @@ export default async function ClientExportsPage({
   const stored = visibleWeeks.length === 0
     ? []
     : await prisma.weeklyClientExport.findMany({
-        where: { weekStart: { in: visibleWeeks } },
+        where: { weekStart: { in: visibleWeeks }, scopeKey },
         include: { capturedBy: { select: { fullName: true } } },
       });
   const storedByWeek = new Map(stored.map((row) => [exportWeekKey(row.weekStart), row]));
@@ -80,6 +86,8 @@ export default async function ClientExportsPage({
         title="Weekly Client Exports"
         description="Owner-only, week-by-week snapshots of every client profile."
       />
+
+      <BranchSelectFilter branches={branches} value={branchId} />
 
       <div className="mb-5 grid gap-3 md:grid-cols-3">
         <Card size="sm">
@@ -193,6 +201,7 @@ export default async function ClientExportsPage({
                         week={key}
                         captured={Boolean(record)}
                         disabled={!canDownload}
+                        branchId={branchId}
                       />
                       <p className="text-xs text-muted-foreground">
                         {record?.pdfLastDownloadedAt
@@ -209,6 +218,7 @@ export default async function ClientExportsPage({
                         week={key}
                         captured={Boolean(record)}
                         disabled={!canDownload}
+                        branchId={branchId}
                       />
                       <p className="text-xs text-muted-foreground">
                         {record?.csvLastDownloadedAt
@@ -233,7 +243,7 @@ export default async function ClientExportsPage({
           pageSize={EXPORT_WEEKS_PER_PAGE}
           total={totalWeeks}
           basePath="/client-exports"
-          params={{}}
+          params={branchId ? { branchId } : {}}
         />
       </Card>
     </>

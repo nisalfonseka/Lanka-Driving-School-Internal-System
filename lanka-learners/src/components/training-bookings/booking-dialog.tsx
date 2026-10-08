@@ -30,8 +30,10 @@ import {
   type BookingSlot,
 } from "@/lib/booking-slots";
 import { bookingCreateSchema } from "@/lib/validations/operations";
+import type { BranchOption } from "@/lib/branches";
 
 type FormValues = {
+  branchId?: string;
   bookingDate: string;
   slot: BookingSlot | "";
   name: string;
@@ -46,11 +48,17 @@ export function BookingDialog({
   defaultDate,
   defaultSlot,
   variant = "primary",
+  branchId,
+  branches,
+  canChooseBranch,
 }: {
   defaultDate: string;
   defaultSlot?: BookingSlot;
   /** "slot" renders the small inline "Book" button used in empty table cells. */
   variant?: "primary" | "slot";
+  branchId: string;
+  branches: BranchOption[];
+  canChooseBranch: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -77,6 +85,7 @@ export function BookingDialog({
     resolver: zodResolver(bookingCreateSchema) as unknown as Resolver<FormValues>,
     defaultValues: {
       bookingDate: defaultDate,
+      branchId,
       slot: defaultSlot ?? "",
       name: "",
       contactNumber: "",
@@ -99,7 +108,7 @@ export function BookingDialog({
         return;
       }
       setLoadingSlots(true);
-      const result = await getSlotAvailabilityAction(date);
+      const result = await getSlotAvailabilityAction(date, getValues("branchId"));
       setLoadingSlots(false);
       if (!result.ok) {
         setAvailability(null);
@@ -156,6 +165,7 @@ export function BookingDialog({
         if (next) {
           reset({
             bookingDate: defaultDate,
+            branchId,
             slot: defaultSlot ?? "",
             name: "",
             contactNumber: "",
@@ -198,6 +208,13 @@ export function BookingDialog({
           className="space-y-4"
           noValidate
         >
+          <Field label="Branch" required error={errors.branchId?.message}>
+            {canChooseBranch ? (
+              <Controller control={control} name="branchId" render={({ field }) => <SelectField value={field.value ?? ""} onValueChange={(value) => { field.onChange(value); void loadAvailability(getValues("bookingDate")); }} options={branches.map((branch) => ({ value: branch.id, label: `${branch.name} (${branch.code})` }))} />} />
+            ) : (
+              <Input readOnly className="bg-muted" value={branches.find((branch) => branch.id === branchId)?.name ?? "Assigned branch"} />
+            )}
+          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="Date"

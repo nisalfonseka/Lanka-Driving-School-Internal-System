@@ -21,7 +21,7 @@ export default async function DashboardLayout({
   const user = await requireUser();
   const settings = await getSettings();
   const [stats, profileRecord, activity] = await Promise.all([
-    getDashboardStats(),
+    getDashboardStats(user.role === "EMPLOYEE" ? user.branchId ?? undefined : undefined),
     prisma.user.findUnique({
       where: { id: user.id },
       select: {

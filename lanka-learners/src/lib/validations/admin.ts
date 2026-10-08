@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { passwordSchema } from "./auth";
-import { cuidSchema, optionalText } from "./common";
+import { branchIdSchema, cuidSchema, optionalText } from "./common";
 
 // ---------------------------------------------------------------------------
 // Employees
@@ -50,6 +50,7 @@ export const employeeCreateSchema = z.object({
   email: optionalEmailSchema,
   mobile: optionalUserMobileSchema,
   password: passwordSchema,
+  branchId: branchIdSchema,
 });
 
 export const employeeUpdateSchema = z.object({
@@ -61,6 +62,7 @@ export const employeeUpdateSchema = z.object({
     .max(120, "Full name is too long"),
   email: optionalEmailSchema,
   mobile: optionalUserMobileSchema,
+  branchId: branchIdSchema.optional(),
 });
 
 export const employeeStatusSchema = z.object({
@@ -82,6 +84,35 @@ export const passwordResetSchema = z
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 export type PasswordResetInput = z.infer<typeof passwordResetSchema>;
+
+// ---------------------------------------------------------------------------
+// Branches
+// ---------------------------------------------------------------------------
+
+const branchShape = {
+  code: z
+    .string()
+    .trim()
+    .min(2, "Code is required")
+    .max(10, "Code is too long")
+    .regex(/^[A-Za-z0-9-]+$/, "Use letters, numbers and hyphens only")
+    .transform((value) => value.toUpperCase()),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Branch name is required")
+    .max(80, "Branch name is too long"),
+};
+
+export const branchCreateSchema = z.object(branchShape);
+export const branchUpdateSchema = z.object({
+  id: branchIdSchema,
+  ...branchShape,
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+});
+
+export type BranchCreateInput = z.infer<typeof branchCreateSchema>;
+export type BranchUpdateInput = z.infer<typeof branchUpdateSchema>;
 
 // ---------------------------------------------------------------------------
 // Vehicle classes
@@ -138,6 +169,14 @@ export const settingsSchema = z.object({
   businessAddress: optionalText(300),
   businessPhone: optionalText(40),
   businessEmail: optionalText(120),
+  businessWebsite: z
+    .string()
+    .trim()
+    .max(200, "Website URL is too long")
+    .refine(
+      (value) => value === "" || z.url().safeParse(value).success,
+      "Enter a complete website URL, including https://"
+    ),
   receiptFooter: optionalText(200),
 });
 

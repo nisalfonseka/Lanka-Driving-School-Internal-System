@@ -92,6 +92,20 @@ export function SettingsForm({ defaults }: { defaults: SettingsInput }) {
         >
           <Input id="businessEmail" {...register("businessEmail")} />
         </Field>
+
+        <Field
+          label="Business Website"
+          htmlFor="businessWebsite"
+          error={errors.businessWebsite?.message}
+          hint="Included in automatic client SMS messages."
+        >
+          <Input
+            id="businessWebsite"
+            type="url"
+            placeholder="https://lankadrivingschool.com"
+            {...register("businessWebsite")}
+          />
+        </Field>
       </div>
 
       <Field

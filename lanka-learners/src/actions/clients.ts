@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { assertBranchAccess, createBranchId } from "@/lib/branches";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import {
   DOCUMENT_LABELS,
@@ -102,6 +103,7 @@ export async function createClientAction(
     }
 
     const data = parsed.data;
+    const branchId = await createBranchId(user, data.branchId);
 
     const identityConflicts = await findClientIdentityConflicts(
       data.idNumber,
@@ -121,6 +123,7 @@ export async function createClientAction(
 
     const client = await prisma.client.create({
       data: {
+        branchId,
         idNumber: data.idNumber,
         admissionNumber: data.admissionNumber,
         profilePhoto: data.profilePhoto ?? null,
@@ -176,7 +179,12 @@ export async function createClientAction(
             }
           : {}),
       },
-      select: { id: true, fullName: true, admissionNumber: true },
+      select: {
+        id: true,
+        fullName: true,
+        admissionNumber: true,
+        branch: { select: { name: true } },
+      },
     });
 
     await writeAuditLog({
@@ -199,6 +207,7 @@ export async function createClientAction(
       recipient: data.mobileMain,
       clientName: client.fullName,
       admissionNumber: client.admissionNumber,
+      branchName: client.branch.name,
       entityType: "Client",
       entityId: client.id,
     });
@@ -225,6 +234,7 @@ export async function updateClientAction(
     }
 
     const data = parsed.data;
+    const branchId = await createBranchId(user, data.branchId);
 
     const existing = await prisma.client.findUnique({
       where: { id: clientId },
@@ -259,6 +269,7 @@ export async function updateClientAction(
         where: { id: clientId },
         data: {
           idNumber: data.idNumber,
+          branchId,
           admissionNumber: data.admissionNumber,
           profilePhoto: data.profilePhoto ?? null,
           fullName: data.fullName,
@@ -361,6 +372,7 @@ export async function updateClientAction(
         scheduleType: existing.scheduleType,
         totalAgreedFee: existing.totalAgreedFee,
         status: existing.status,
+        branchId: existing.branchId,
       },
       newData: {
         fullName: data.fullName,
@@ -371,6 +383,7 @@ export async function updateClientAction(
         scheduleType: data.scheduleType,
         totalAgreedFee: data.totalAgreedFee,
         status: data.status,
+        branchId,
       },
     });
 
@@ -405,9 +418,10 @@ export async function updateClientDocumentsAction(
 
     const client = await prisma.client.findUnique({
       where: { id: data.clientId },
-      select: { fullName: true, admissionNumber: true, document: true },
+      select: { fullName: true, admissionNumber: true, branchId: true, document: true },
     });
     if (!client) return fail("That client no longer exists.");
+    assertBranchAccess(user, client.branchId);
 
     const before = toDocumentValues(client.document);
     const after: DocumentValues = {
@@ -499,6 +513,7 @@ export async function setClientStatusAction(
         admissionNumber: true,
         mobileMain: true,
         status: true,
+        branch: { select: { name: true } },
       },
     });
     if (!existing) return fail("That client no longer exists.");
@@ -525,6 +540,7 @@ export async function setClientStatusAction(
         recipient: existing.mobileMain,
         clientName: existing.fullName,
         admissionNumber: existing.admissionNumber,
+        branchName: existing.branch.name,
         entityType: "Client",
         entityId: clientId,
       });

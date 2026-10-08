@@ -4,38 +4,117 @@ import type { SmsEvent } from "./events";
 
 export type SmsMessageData = {
   businessName: string;
+  businessPhone?: string;
+  businessWebsite?: string;
   clientName: string;
   admissionNumber: string;
+  branchName?: string;
   amount?: unknown;
   billNumber?: string;
   date?: Date | string;
+  paymentMethod?: string;
+  paymentType?: string;
   result?: string;
   vehicleClasses?: string;
 };
 
-/** Keep automated messages short enough for predictable SMS billing. */
+function compactWebsite(value: string | undefined): string | null {
+  const website = value?.trim();
+  if (!website) return null;
+  return website.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
+function commonLines(data: SmsMessageData): string[] {
+  const website = compactWebsite(data.businessWebsite);
+  return [
+    data.branchName ? `Branch: ${data.branchName}` : null,
+    website ? `Information: ${website}` : null,
+    data.businessPhone?.trim()
+      ? `Inquiries: ${data.businessPhone.trim()}`
+      : null,
+  ].filter((line): line is string => Boolean(line));
+}
+
+function message(
+  data: SmsMessageData,
+  eventLines: Array<string | null | undefined>,
+  closing = "Thank you."
+): string {
+  const name = data.clientName.trim().split(/\s+/)[0] || data.clientName;
+  return [
+    `Hi ${name},`,
+    ...eventLines,
+    `Admission No: ${data.admissionNumber}`,
+    ...commonLines(data),
+    closing,
+    `- ${data.businessName}`,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+}
+
+/** Plain ASCII and compact lines keep multipart SMS billing predictable. */
 export function buildSmsMessage(
   event: SmsEvent,
   data: SmsMessageData
 ): string {
-  const name = data.clientName.trim().split(/\s+/)[0] || data.clientName;
-  const suffix = `- ${data.businessName}`;
-
   switch (event) {
     case "CLIENT_REGISTERED":
-      return `Welcome ${name}. Your registration is complete. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(
+        data,
+        [`Welcome to ${data.businessName}!`, "Registration: Complete"],
+        "Thank you and drive safely!"
+      );
     case "PAYMENT_RECEIVED":
-      return `Payment of ${formatCurrency(data.amount)} received. Bill No: ${data.billNumber}. Thank you. ${suffix}`;
+      return message(data, [
+        "Payment received successfully.",
+        data.billNumber ? `Bill No: ${data.billNumber}` : null,
+        data.date ? `Payment Date: ${formatDate(data.date)}` : null,
+        `Amount: ${formatCurrency(data.amount)}`,
+        data.paymentType
+          ? `Payment Type: ${humanise(data.paymentType)}`
+          : null,
+        data.paymentMethod
+          ? `Payment Method: ${humanise(data.paymentMethod)}`
+          : null,
+      ]);
     case "WRITTEN_EXAM_SCHEDULED":
-      return `Your written exam is scheduled for ${formatDate(data.date)}. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(
+        data,
+        ["Written Exam Scheduled", `Date: ${formatDate(data.date)}`],
+        "Please arrive on time with the required documents."
+      );
     case "WRITTEN_EXAM_RESULT":
-      return `Your written exam result is ${humanise(data.result)}. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(data, [
+        "Written Exam Result",
+        `Result: ${humanise(data.result)}`,
+      ]);
     case "PRACTICAL_TRIAL_SCHEDULED":
-      return `Your practical trial (${data.vehicleClasses}) is scheduled for ${formatDate(data.date)}. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(
+        data,
+        [
+          "Practical Trial Scheduled",
+          data.vehicleClasses
+            ? `Vehicle Class: ${data.vehicleClasses}`
+            : null,
+          `Date: ${formatDate(data.date)}`,
+        ],
+        "Please arrive on time with the required documents."
+      );
     case "PRACTICAL_TRIAL_RESULT":
-      return `Your practical trial result (${data.vehicleClasses}) is ${humanise(data.result)}. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(data, [
+        "Practical Trial Result",
+        data.vehicleClasses
+          ? `Vehicle Class: ${data.vehicleClasses}`
+          : null,
+        `Result: ${humanise(data.result)}`,
+      ]);
     case "CLIENT_COMPLETED":
-      return `Congratulations ${name}. Your learner record is now completed. Admission No: ${data.admissionNumber}. ${suffix}`;
+      return message(
+        data,
+        ["Congratulations!", "Your learner record is now complete."],
+        "Thank you and drive safely!"
+      );
   }
 }
 

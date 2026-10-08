@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { fail, ok, runAction, type ActionResult } from "@/lib/action-result";
 import { writeAuditLog } from "@/lib/audit";
 import { requireOwnerAction, requireUserAction } from "@/lib/auth/session";
+import { createBranchId } from "@/lib/branches";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { toUtcDateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -33,9 +34,11 @@ export async function createExpenseAction(
     }
 
     const data = parsed.data;
+    const branchId = await createBranchId(user, data.branchId);
 
     const expense = await prisma.companyExpense.create({
       data: {
+        branchId,
         expenseDate: toUtcDateOnly(data.expenseDate),
         category: data.category,
         amount: data.amount,
@@ -77,6 +80,7 @@ export async function updateExpenseAction(
     }
 
     const data = parsed.data;
+    const branchId = await createBranchId(user, data.branchId);
 
     const existing = await prisma.companyExpense.findUnique({
       where: { id: data.id },
@@ -86,6 +90,7 @@ export async function updateExpenseAction(
     await prisma.companyExpense.update({
       where: { id: data.id },
       data: {
+        branchId,
         expenseDate: toUtcDateOnly(data.expenseDate),
         category: data.category,
         amount: data.amount,
@@ -105,12 +110,14 @@ export async function updateExpenseAction(
         category: existing.category,
         amount: existing.amount,
         description: existing.description,
+        branchId: existing.branchId,
       },
       newData: {
         expenseDate: data.expenseDate,
         category: data.category,
         amount: data.amount,
         description: data.description,
+        branchId,
       },
     });
 

@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireUser } from "@/lib/auth/session";
+import { getActiveBranches, listBranchId } from "@/lib/branches";
 import { formatDate, initials } from "@/lib/format";
 import { searchClients } from "@/lib/queries/clients";
 import { clientSearchSchema } from "@/lib/validations/client";
@@ -31,7 +32,7 @@ export default async function ClientsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
+  const user = await requireUser();
 
   const raw = await searchParams;
   const flat = Object.fromEntries(
@@ -47,6 +48,8 @@ export default async function ClientsPage({
     ? parsed.data
     : { page: 1 as const, ...({} as Record<string, undefined>) };
 
+  const branches = user.role === "OWNER" ? await getActiveBranches() : undefined;
+  const branchId = listBranchId(user, filters.branchId);
   const { rows, total, page, pageSize } = await searchClients({
     q: filters.q,
     idNumber: filters.idNumber,
@@ -54,6 +57,7 @@ export default async function ClientsPage({
     from: filters.from,
     to: filters.to,
     status: filters.status,
+    branchId,
     page: filters.page ?? 1,
   });
 
@@ -71,7 +75,7 @@ export default async function ClientsPage({
       />
 
       <Card className="overflow-hidden p-0">
-        <ClientFilters />
+        <ClientFilters branches={branches} />
 
         {rows.length === 0 ? (
           <EmptyState
@@ -94,6 +98,7 @@ export default async function ClientsPage({
                   <TableHead>NIC</TableHead>
                   <TableHead>Admission No.</TableHead>
                   <TableHead>Registered</TableHead>
+                  <TableHead>Branch</TableHead>
                   <TableHead>Vehicle Classes</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Action</TableHead>
@@ -139,6 +144,8 @@ export default async function ClientsPage({
                     <TableCell className="text-muted-foreground">
                       {formatDate(client.registeredDate)}
                     </TableCell>
+
+                    <TableCell>{client.branch.name}</TableCell>
 
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
